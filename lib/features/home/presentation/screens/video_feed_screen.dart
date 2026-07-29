@@ -178,7 +178,14 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
         showDialog(
           context: context,
           barrierColor: Colors.black54,
-          builder: (context) => const InteractionOverlay(),
+          builder: (context) => InteractionOverlay(
+            videoId: widget.video.title,
+            movie: {
+              'id': widget.video.title.hashCode,
+              'title': widget.video.title,
+              'overview': widget.video.description,
+            },
+          ),
         );
       },
       onTap: _togglePlay,

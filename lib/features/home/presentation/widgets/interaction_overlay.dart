@@ -1,15 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/supabase_service.dart';
+import '../../../profile/presentation/providers/my_list_providers.dart';
+import '../providers/interaction_providers.dart';
+import 'comments_sheet.dart';
 
-class InteractionOverlay extends StatelessWidget {
-  const InteractionOverlay({super.key});
+class InteractionOverlay extends ConsumerWidget {
+  final String videoId;
+  final Map<String, dynamic> movie;
+  
+  const InteractionOverlay({
+    super.key, 
+    required this.videoId,
+    required this.movie,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLiked = ref.watch(likeStatusProvider(videoId)).value ?? false;
+    final isSaved = ref.watch(myListProvider.notifier).isSaved(int.tryParse(videoId) ?? movie['id'] ?? 0);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          // Close on tap background
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(color: Colors.transparent),
+          ),
+          
           // Top instruction
           Positioned(
             top: MediaQuery.of(context).size.height * 0.3,
@@ -40,11 +62,53 @@ class InteractionOverlay extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildActionButton(Icons.favorite, '-J\'aime', AppColors.neonFuchsia),
-                _buildActionButton(Icons.chat_bubble, 'Commenter', AppColors.neonCyan),
-                _buildActionButton(Icons.bookmark, 'Sauvegarder', Colors.white),
-                _buildActionButton(Icons.share, 'Partager', Colors.white),
-                _buildActionButton(Icons.add, 'Suivre', AppColors.neonFuchsia),
+                _buildActionButton(
+                  icon: isLiked ? Icons.favorite : Icons.favorite_border, 
+                  label: '-J\'aime', 
+                  color: AppColors.neonFuchsia,
+                  onTap: () async {
+                    await SupabaseService.toggleLike(videoId);
+                    ref.invalidate(likeStatusProvider(videoId));
+                  },
+                ),
+                _buildActionButton(
+                  icon: Icons.chat_bubble, 
+                  label: 'Commenter', 
+                  color: AppColors.neonCyan,
+                  onTap: () {
+                    Navigator.pop(context);
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => CommentsSheet(videoId: videoId),
+                    );
+                  },
+                ),
+                _buildActionButton(
+                  icon: isSaved ? Icons.bookmark : Icons.bookmark_border, 
+                  label: 'Sauvegarder', 
+                  color: isSaved ? AppColors.neonCyan : Colors.white,
+                  onTap: () {
+                    ref.read(myListProvider.notifier).toggleItem(movie);
+                  },
+                ),
+                _buildActionButton(
+                  icon: Icons.share, 
+                  label: 'Partager', 
+                  color: Colors.white,
+                  onTap: () {
+                    Share.share('Regarde ce contenu sur Eyez : ${movie['title'] ?? movie['name']}');
+                  },
+                ),
+                _buildActionButton(
+                  icon: Icons.add, 
+                  label: 'Suivre', 
+                  color: AppColors.neonFuchsia,
+                  onTap: () {
+                    // Logic for follow (needs creator_id)
+                  },
+                ),
               ],
             ),
           ),
@@ -53,27 +117,35 @@ class InteractionOverlay extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, Color color) {
+  Widget _buildActionButton({
+    required IconData icon, 
+    required String label, 
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.black54,
-              border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.2),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                ),
-              ],
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black54,
+                border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.2),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Icon(icon, color: color, size: 24),
             ),
-            child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(height: 10),
           Text(

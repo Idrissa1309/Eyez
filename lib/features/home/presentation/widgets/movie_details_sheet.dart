@@ -145,7 +145,7 @@ class MovieDetailsSheet extends ConsumerWidget {
                   child: Container(
                     height: 55,
                     decoration: BoxDecoration(
-                      color: isSaved ? AppColors.neonFuchsia.withOpacity(0.1) : Colors.transparent,
+                      color: isSaved ? AppColors.neonFuchsia.withValues(alpha: 0.1) : Colors.transparent,
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(color: isSaved ? AppColors.neonFuchsia : Colors.white12),
                     ),
