@@ -13,15 +13,15 @@ class MovieDetailsSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // If no movie is provided, we use dummy data (fallback)
     final tmdbId = movie?['id'];
-    final title = movie?['title'] ?? movie?['name'] ?? 'Interstellar';
+    final title = movie?['title'] ?? movie?['name'] ?? 'Inconnu';
     final rating = movie?['vote_average']?.toString() ?? '4,9';
     final voteCount = movie?['vote_count']?.toString() ?? '12.5k';
     final posterPath = movie?['poster_path'];
-    final year = movie?['release_date']?.split('-')[0] ?? movie?['first_air_date']?.split('-')[0] ?? '2014';
-    final synopsis = movie?['overview'] ?? 'Lorsque la Terre devient inhabitable, un groupe d’explorateurs voyage à travers un trou de ver à la recherche d’une nouvelle planète habitable.';
+    final year = movie?['release_date']?.split('-')[0] ?? movie?['first_air_date']?.split('-')[0] ?? '2024';
+    final synopsis = movie?['overview'] ?? 'Aucun synopsis disponible.';
 
+    // Check if the movie is saved
     final isSaved = tmdbId != null && ref.watch(myListProvider.notifier).isSaved(tmdbId);
 
     return Container(
@@ -35,7 +35,6 @@ class MovieDetailsSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with close button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -54,10 +53,7 @@ class MovieDetailsSheet extends ConsumerWidget {
                 ),
               ],
             ),
-            
             const SizedBox(height: 10),
-            
-            // Poster and Title
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -70,12 +66,7 @@ class MovieDetailsSheet extends ConsumerWidget {
                         height: 130,
                         fit: BoxFit.cover,
                       )
-                    : Image.network(
-                        'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1025&auto=format&fit=crop',
-                        width: 90,
-                        height: 130,
-                        fit: BoxFit.cover,
-                      ),
+                    : Container(width: 90, height: 130, color: Colors.white10),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
@@ -109,14 +100,10 @@ class MovieDetailsSheet extends ConsumerWidget {
                 ),
               ],
             ),
-            
             const SizedBox(height: 30),
-            
-            // Metadata List
             _buildDetailRow(Icons.calendar_today, 'Année', year),
-            _buildDetailRow(Icons.language, 'Langue Originale', movie?['original_language']?.toString().toUpperCase() ?? 'FR'),
+            _buildDetailRow(Icons.language, 'Langue', movie?['original_language']?.toString().toUpperCase() ?? 'FR'),
             _buildPlatformRow('Netflix'),
-            
             const SizedBox(height: 25),
             const Text(
               'Synopsis',
@@ -127,10 +114,7 @@ class MovieDetailsSheet extends ConsumerWidget {
               synopsis,
               style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
             ),
-            
             const SizedBox(height: 40),
-            
-            // Buttons
             Row(
               children: [
                 Expanded(
@@ -158,7 +142,7 @@ class MovieDetailsSheet extends ConsumerWidget {
                         color: isSaved ? AppColors.neonFuchsia : Colors.white70
                       ),
                       label: Text(
-                        isSaved ? 'Retirer' : 'Ma liste',
+                        isSaved ? 'Retirer' : 'Ma Collection',
                         style: TextStyle(
                           color: isSaved ? AppColors.neonFuchsia : Colors.white, 
                           fontWeight: FontWeight.w600
@@ -183,15 +167,9 @@ class MovieDetailsSheet extends ConsumerWidget {
         children: [
           Icon(icon, size: 20, color: Colors.white38),
           const SizedBox(width: 15),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white38, fontSize: 14),
-          ),
+          Text(label, style: const TextStyle(color: Colors.white38, fontSize: 14)),
           const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
-          ),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -204,15 +182,9 @@ class MovieDetailsSheet extends ConsumerWidget {
         children: [
           const Icon(Icons.play_circle_outline, size: 20, color: Colors.redAccent),
           const SizedBox(width: 15),
-          const Text(
-            'Plateforme',
-            style: TextStyle(color: Colors.white38, fontSize: 14),
-          ),
+          const Text('Plateforme', style: TextStyle(color: Colors.white38, fontSize: 14)),
           const Spacer(),
-          Text(
-            platform,
-            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
-          ),
+          Text(platform, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
         ],
       ),
     );

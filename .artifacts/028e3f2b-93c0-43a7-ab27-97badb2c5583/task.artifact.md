@@ -1,15 +1,16 @@
-# Tasks - "Ma Liste" Implementation
+# Tasks - Profile, Settings & Platform Popup
 
-- [x] **Phase 18: Backend & State Layer**
-    - [x] Add list management methods to `SupabaseService`
-    - [x] Create `myListProvider` for real-time list management
-- [x] **Phase 19: UI Integration - Movie Details**
-    - [x] Refactor `MovieDetailsSheet` to `ConsumerWidget`
-    - [x] Implement toggle logic for "Ma liste" button
-- [x] **Phase 20: UI Integration - Profile Screen**
-    - [x] Refactor `ProfileScreen` to `ConsumerWidget`
-    - [x] Implement tab switching logic (Vidéos vs Listes)
-    - [x] Bind "Listes" tab to `myListProvider` data
-- [/] **Phase 21: Verification & Polish**
-    - [ ] Verify full CRUD flow (Add -> View in Profile -> Remove)
-    - [ ] Final UI refinements for the saved items grid
+- [x] **Phase 1: Profile & Settings Reorganization**
+    - [x] Replace 3-dots menu with direct Settings icon
+    - [x] Consolidate profile editing into Settings hub
+    - [x] Integrate `image_picker` for profile photos
+- [x] **Phase 2: Enhanced Feed Interactions**
+    - [x] Implement Double-Tap to Like with central heart
+    - [x] Refine typography (smaller titles/descriptions)
+- [x] **Phase 3: Interactive Platform Popup**
+    - [x] Fetch streaming provider data from TMDB
+    - [x] Create `PlatformPopup` with subs count, bio, and "Suivre" button
+    - [x] Link "Voir la plateforme" to official streaming sites
+- [x] **Phase 4: Social & Terminology**
+    - [x] Update vocabulary: Abonnements, Collections, Ma Collection
+    - [x] Polish comments with relative timestamps

@@ -4,13 +4,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class SupabaseService {
   static String get _url => dotenv.get('SUPABASE_URL');
   //static String get _anonKey => dotenv.get('SUPABASE_ANON_KEY');
-  static String get _publishableKey => dotenv.get('SUPABASE_ANON_KEY');
+  static String get _publishabeKey => dotenv.get('SUPABASE_PUBLISHABLE_KEY');
+
 
   static Future<void> init() async {
     await Supabase.initialize(
       url: _url,
       //anonKey: _anonKey,
-      publishableKey: _publishableKey
+      publishableKey: _publishabeKey,
     );
   }
 
@@ -32,6 +33,12 @@ class SupabaseService {
 
   static Future<void> signOut() async {
     await client.auth.signOut();
+  }
+
+  static Future<void> updatePassword(String newPassword) async {
+    await client.auth.updateUser(UserAttributes(
+      password: newPassword,
+    ));
   }
 
   // --- Saved Lists Methods ---
@@ -164,5 +171,50 @@ class SupabaseService {
         'following_id': targetUserId,
       });
     }
+  }
+
+  // --- Profile Methods ---
+
+  static Future<Map<String, dynamic>?> getUserProfile() async {
+    final user = currentUser;
+    if (user == null) return null;
+
+    final response = await client
+        .from('profiles')
+        .select()
+        .eq('id', user.id)
+        .maybeSingle();
+        
+    return response;
+  }
+
+  static Future<void> updateProfile({required String username, String? bio}) async {
+    final user = currentUser;
+    if (user == null) return;
+
+    await client.from('profiles').upsert({
+      'id': user.id,
+      'username': username,
+      'bio': bio,
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+    
+    // Also update auth metadata for convenience
+    await client.auth.updateUser(UserAttributes(
+      data: {'username': username},
+    ));
+  }
+
+  static Future<List<Map<String, dynamic>>> getLikedMovies() async {
+    final user = currentUser;
+    if (user == null) return [];
+
+    final response = await client
+        .from('likes')
+        .select()
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
+        
+    return List<Map<String, dynamic>>.from(response);
   }
 }

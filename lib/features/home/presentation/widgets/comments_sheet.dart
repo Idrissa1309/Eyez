@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../providers/interaction_providers.dart';
@@ -29,12 +30,21 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     }
   }
 
+  String _formatTime(String? dateStr) {
+    if (dateStr == null) return '';
+    final date = DateTime.parse(dateStr);
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes}m';
+    if (diff.inHours < 24) return 'il y a ${diff.inHours}h';
+    return DateFormat('dd/MM').format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
     final commentsAsync = ref.watch(commentsProvider(widget.videoId));
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
+      height: MediaQuery.of(context).size.height * 0.75,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: const BoxDecoration(
         color: AppColors.surface,
@@ -53,10 +63,10 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
           ),
           const SizedBox(height: 20),
           const Text(
-            'Commentaires',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            'COMMENTAIRES',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 25),
           
           Expanded(
             child: commentsAsync.when(
@@ -67,28 +77,37 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                     itemBuilder: (context, index) {
                       final c = comments[index];
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.only(bottom: 25),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const CircleAvatar(
-                              radius: 18,
+                              radius: 20,
                               backgroundColor: AppColors.outline,
-                              child: Icon(Icons.person, size: 20, color: Colors.white70),
+                              child: Icon(Icons.person, size: 22, color: Colors.white70),
                             ),
                             const SizedBox(width: 15),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    c['username'] ?? 'Anonyme',
-                                    style: const TextStyle(color: AppColors.neonCyan, fontSize: 13, fontWeight: FontWeight.bold),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        c['username'] ?? 'Anonyme',
+                                        style: const TextStyle(color: AppColors.neonFuchsia, fontSize: 13, fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        _formatTime(c['created_at']),
+                                        style: const TextStyle(color: Colors.white24, fontSize: 11),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 6),
                                   Text(
                                     c['content'],
-                                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                                    style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
                                   ),
                                 ],
                               ),

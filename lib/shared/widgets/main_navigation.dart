@@ -34,7 +34,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         body: _screens[_selectedIndex],
         bottomNavigationBar: AnimatedContainer(
           duration: const Duration(milliseconds: 500),
-          height: 55,
+          height: 70, 
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
             color: AppColors.background.withValues(alpha: 0.8),
@@ -56,9 +56,9 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.home_outlined, 'ACCUEIL', ambientColor),
+                _buildNavItem(0, Icons.home_outlined, ambientColor),
                 _buildCentralItem(ambientColor),
-                _buildNavItem(2, Icons.person_outline, 'PROFIL', ambientColor),
+                _buildNavItem(2, Icons.person_outline, ambientColor),
               ],
             ),
           ),
@@ -70,14 +70,13 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
   Widget _buildNavItem(
     int index,
     IconData icon,
-    String label,
     Color accentColor,
   ) {
     bool isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedIndex = index),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
@@ -85,25 +84,23 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
               icon,
               key: ValueKey('${icon}_$isSelected'),
               color: isSelected ? accentColor : AppColors.textSecondary,
-              size: 24,
+              size: 28,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? accentColor : AppColors.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
+          if (isSelected) ...[
+            const SizedBox(height: 4),
+            Container(
+              width: 4,
+              height: 4,
+              decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildCentralItem(Color accentColor) {
-    //bool isSelected = _selectedIndex == 1;
     return GestureDetector(
       onTap: () => setState(() => _selectedIndex = 1),
       child: AnimatedContainer(
@@ -124,19 +121,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             stops: const [0.2, 1.0],
           ),
         ),
-        child: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            EyeLogo(size: 28, showGlow: false),
-            Text(
-              'ŒIL FLOTTANT',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 4.5,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        child: const Center(
+          child: EyeLogo(size: 32, showGlow: false),
         ),
       ),
     );

@@ -1,72 +1,47 @@
-# Implementation Plan - "Ma Liste" Feature
+# Implementation Plan - Interactive Platform Popup
 
-This plan details how to implement the "Ma Liste" functionality, allowing users to save their favorite movies and TV shows to their personal list in Supabase.
+This plan details the implementation of an interactive platform "channel" popup that appears when clicking on the platform badge in the video feed.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Database Table**: You need to create a table named `saved_lists` in your Supabase SQL Editor using the script provided below.
-> - **Real-time Sync**: The UI will update instantly across the app (Profile and Movie Sheets) using Riverpod.
-
-### SQL Script for Supabase
-```sql
-create table saved_lists (
-  id uuid default uuid_generate_v4() primary key,
-  user_id uuid references auth.users not null,
-  tmdb_id integer not null,
-  title text not null,
-  poster_path text,
-  media_type text,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(user_id, tmdb_id)
-);
-
--- Enable RLS
-alter table saved_lists enable row level security;
-
--- Policy: Users can see only their own saved items
-create policy "Users can view their own saved items"
-  on saved_lists for select
-  using ( auth.uid() = user_id );
-
--- Policy: Users can insert their own saved items
-create policy "Users can insert their own saved items"
-  on saved_lists for insert
-  with check ( auth.uid() = user_id );
-
--- Policy: Users can delete their own saved items
-create policy "Users can delete their own saved items"
-  on saved_lists for delete
-  using ( auth.uid() = user_id );
-```
+> - **Platform Data**: Since TMDB doesn't provide subscriber counts or specific channel descriptions for streaming services, I will use high-quality **mock data** for major platforms (Netflix, Disney+, etc.) to match the high-fidelity UI requirements.
+> - **Redirection**: Tapping "Voir la plateforme" will open the official URL in the browser.
+> - **Visuals**: The popup will be a centered dark card with neon accents, matching the provided design.
 
 ## Proposed Changes
 
-### Data & State Layer
+### 1. Data Layer
 
-#### [MODIFY] [supabase_service.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/core/services/supabase_service.dart)
-- Add `toggleSavedItem(Map<String, dynamic> movie)`: Adds or removes an item based on its existence.
-- Add `getSavedItems()`: Fetches the list for the current user.
+#### [MODIFY] [tmdb_service.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/core/services/tmdb_service.dart)
+- Update `getTrendingWithVideos()` to extract the primary streaming provider (Netflix, Disney+, etc.) for each movie using the `watch/providers` metadata.
+- Map the provider name to a normalized key (e.g., 'netflix', 'disney').
 
-#### [NEW] [my_list_providers.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/profile/presentation/providers/my_list_providers.dart)
-- Create `myListProvider`: An `AsyncNotifierProvider` that manages the user's saved items.
+### 2. UI Components
 
-### UI Implementation
+#### [NEW] [platform_popup.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/widgets/platform_popup.dart)
+- Create a dedicated widget for the platform details card.
+- **Features**:
+    - Platform logo (circular).
+    - Platform name & subscriber count.
+    - Custom description.
+    - "Suivre" (Follow) button with a gradient look.
+    - "Voir la plateforme" text link.
+    - Close button (X) in the top-right.
 
-#### [MODIFY] [movie_details_sheet.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/widgets/movie_details_sheet.dart)
-- Convert to `ConsumerWidget`.
-- Watch `myListProvider` to toggle the "Ma liste" button state (Change icon and text to "Retirer" if already saved).
+### 3. Screen Integration
 
-#### [MODIFY] [profile_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/profile/presentation/screens/profile_screen.dart)
-- Convert to `ConsumerWidget`.
-- Implement a state variable for the active tab (Vidéos, Listes, etc.).
-- When "Listes" is active, display the posters from `myListProvider`.
+#### [MODIFY] [video_feed_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/screens/video_feed_screen.dart)
+- Update `_buildPlatformBadge` to:
+    - Display the actual platform name from the movie data.
+    - On tap, trigger `showDialog` to display the `PlatformPopup`.
 
 ## Verification Plan
 
 ### Manual Verification
-- [ ] Open a movie from the Explorer or Feed.
-- [ ] Tap "Ma liste". Verify the button changes state.
-- [ ] Go to the Profile screen and tap the "Listes" tab. Verify the movie appears in the grid.
-- [ ] Tap the movie in the Profile grid. Verify it opens the details sheet.
-- [ ] Tap "Retirer" in the details sheet. Verify it disappears from the Profile grid.
+- [ ] Open the Accueil tab and wait for a video to load.
+- [ ] Tap the platform badge (e.g., "Netflix" or "Disney+").
+- [ ] Verify the popup matches the requested design (centered card, follow button, description).
+- [ ] Tap "Suivre" and verify it provides visual feedback.
+- [ ] Tap "Voir la plateforme" and confirm it opens the browser.
+- [ ] Tap the "X" or outside the card to close the popup.
