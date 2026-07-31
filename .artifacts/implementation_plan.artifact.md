@@ -1,34 +1,39 @@
-# Plan d'implémentation - Optimisation du Lancement et Correction de l'Écran Noir
+# Plan d'implémentation - Finalisation des Paramètres
 
-L'objectif est de réduire le temps de chargement initial et d'éliminer l'écran noir au démarrage en rendant l'initialisation non-bloquante et en optimisant les appels API.
+Ce plan détaille l'implémentation des fonctionnalités manquantes dans l'écran des paramètres, notamment la gestion sécurisée du changement de mot de passe, les informations "À propos" et le support.
 
 ## Modifications proposées
 
-### 1. Optimisation TMDB
-- **Parallélisation** : Utiliser `Future.wait` pour récupérer les détails des 15 vidéos tendances en parallèle au lieu de les récupérer séquentiellement. Cela devrait diviser le temps de chargement par ~10 sur une connexion rapide.
+### 1. Sécurisation du Changement de Mot de Passe
+- **Vérification** : Ajouter une étape de vérification de l'ancien mot de passe avant d'autoriser la modification.
+- **Logique** : Utiliser la méthode `signIn` de Supabase avec l'email actuel et l'ancien mot de passe pour confirmer l'identité.
+- **UI** : Mettre à jour le dialogue pour inclure trois champs : Ancien mot de passe, Nouveau mot de passe, Confirmation.
 
-### 2. Initialisation Non-Bloquante
-- **Splash Screen** : Introduire un `SplashScreen` qui s'affiche immédiatement.
-- **Refactoring main.dart** : Déplacer l'initialisation de Supabase et Dotenv dans le `SplashScreen` ou un provider, permettant à Flutter de rendre le premier frame instantanément.
+### 2. Section "À propos"
+- **Contenu** : Afficher un modal ou un dialogue précisant que l'application est développée par **Idrissa Sow** et **Ousmane Sow**.
+- **Design** : Utiliser un style épuré avec le logo de l'application.
 
-### 3. Gestion de l'état initial
-- S'assurer que l'application ne reste pas bloquée si un service met du temps à répondre.
+### 3. Support & Aide
+- **Lien externe** : Configurer le bouton "Aide et support" pour ouvrir le site [https://autorunsite.netlify.app](https://autorunsite.netlify.app) via `url_launcher`.
+
+### 4. Autres fonctionnalités (Général)
+- **Thème & Notifications** : Ajouter des messages informatifs ou des dialogues simples pour indiquer que ces fonctionnalités sont gérées automatiquement par le système pour le moment.
 
 ## Détails Techniques
 
-### [MODIFY] [tmdb_service.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/core/services/tmdb_service.dart)
-- Modifier `getTrendingWithVideos` pour utiliser `Future.wait`.
+### [MODIFY] [supabase_service.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/core/services/supabase_service.dart)
+- Ajouter une méthode `verifyPassword(String password)` qui tente une re-connexion silencieuse.
 
-### [NEW] [SplashScreen](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/onboarding/presentation/screens/splash_screen.dart)
-- Créer un écran de démarrage simple avec un logo et un indicateur de chargement.
-
-### [MODIFY] [main.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/main.dart)
-- Supprimer les `await` bloquants de `main()` (sauf `WidgetsFlutterBinding`).
-- Utiliser `SplashScreen` comme `home` initial.
+### [MODIFY] [settings_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/profile/presentation/screens/settings_screen.dart)
+- Implémenter `_showAbout`.
+- Mettre à jour `_showChangePassword` avec la nouvelle logique de validation.
+- Connecter le bouton Support à `url_launcher`.
 
 ## Plan de vérification
 
 ### Tests Manuels
-- [ ] Vérifier que l'application affiche un logo immédiatement après l'installation.
-- [ ] Mesurer le temps de passage du logo à l'écran d'accueil/flux vidéo.
-- [ ] Vérifier que l'application ne nécessite plus de redémarrage pour fonctionner.
+- [ ] Tenter de changer le mot de passe avec un mauvais "ancien mot de passe" (doit échouer).
+- [ ] Vérifier que le changement fonctionne avec le bon ancien mot de passe.
+- [ ] Cliquer sur "À propos" et vérifier les noms des développeurs.
+- [ ] Cliquer sur "Aide et support" et vérifier l'ouverture du navigateur.
+- [ ] Vérifier que la réduction de taille (33%) est préservée dans les nouveaux éléments.

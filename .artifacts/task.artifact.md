@@ -1,4 +1,10 @@
-- [x] **Optimisation du Lancement**
-    - [x] Paralléliser `getTrendingWithVideos` dans `TMDBService`
-    - [x] Créer `SplashScreen` pour un retour visuel immédiat
-    - [x] Refactorer `main.dart` pour une initialisation non-bloquante
+- [x] **Data & Logic**
+    - [x] Ajouter `verifyPassword` dans `SupabaseService`
+- [x] **Interface Utilisateur - Paramètres**
+    - [x] Mettre à jour `_showChangePassword` (Validation de l'ancien mot de passe)
+    - [x] Implémenter `_showAbout` (Développeurs: Idrissa & Ousmane Sow)
+    - [x] Connecter "Aide et support" au site externe
+    - [x] Peaufiner les autres rubriques (Thème, Notifications, Langue)
+- [x] **Vérification**
+    - [x] Tester le flux de changement de mot de passe
+    - [x] Vérifier les liens externes

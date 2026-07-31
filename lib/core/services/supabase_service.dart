@@ -39,6 +39,19 @@ class SupabaseService {
     ));
   }
 
+  static Future<bool> verifyPassword(String password) async {
+    try {
+      final email = currentUser?.email;
+      if (email == null) return false;
+      
+      // Attempt a temporary sign in to verify the current password
+      await client.auth.signInWithPassword(email: email, password: password);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // --- Saved Lists Methods ---
 
   static Future<List<Map<String, dynamic>>> getSavedItems() async {
