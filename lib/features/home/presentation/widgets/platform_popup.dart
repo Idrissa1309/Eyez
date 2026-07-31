@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../shared/widgets/brand_icons.dart';
 import '../../../profile/presentation/screens/platform_channel_screen.dart';
 import '../providers/interaction_providers.dart';
 
@@ -21,15 +22,36 @@ class PlatformPopup extends ConsumerWidget {
       'subscribers': '150M',
       'description': 'Disney, Pixar, Marvel, Star Wars et National Geographic réunis.',
       'url': 'https://www.disneyplus.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg', // SVG might be tricky, use PNG if possible
+      'logo': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg',
     },
-    // ...
+    'Amazon Prime Video': {
+      'subscribers': '200M',
+      'description': 'Profitez de films et séries exclusifs, ainsi que des avantages Amazon Prime.',
+      'url': 'https://www.primevideo.com',
+      'logo': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Prime_Video.png',
+    },
+    'Apple TV+': {
+      'subscribers': '50M',
+      'description': 'Des histoires originales des esprits les plus créatifs de la télévision et du cinéma.',
+      'url': 'https://tv.apple.com',
+      'logo': 'https://upload.wikimedia.org/wikipedia/commons/2/28/Apple_TV_Plus_Logo.svg',
+    },
+    'Crunchyroll': {
+      'subscribers': '12M',
+      'description': 'Le leader mondial du streaming d\'animes, proposant la plus grande bibliothèque de titres.',
+      'url': 'https://www.crunchyroll.com',
+      'logo': 'https://upload.wikimedia.org/wikipedia/commons/0/08/Crunchyroll_Logo.svg',
+    },
   };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final String normalizedName = platformData.keys.firstWhere(
-      (k) => platformName.contains(k) || k.contains(platformName),
+      (k) {
+        final key = k.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+        final name = platformName.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+        return key.contains(name) || name.contains(key);
+      },
       orElse: () => 'Netflix',
     );
     
@@ -65,33 +87,10 @@ class PlatformPopup extends ConsumerWidget {
               ),
             ),
             
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: isFollowing 
-                      ? [Colors.grey.shade800, Colors.grey.shade900]
-                      : [AppColors.neonCyan, AppColors.neonBlue],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: (isFollowing ? Colors.black : AppColors.neonCyan).withValues(alpha: 0.3),
-                    blurRadius: 15,
-                  ),
-                ],
-              ),
-              child: ClipOval(
-                child: Center(
-                  child: Text(
-                    normalizedName.substring(0, 1).toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
+            PlatformIcon(
+              name: normalizedName,
+              size: 80,
+              isCircular: true,
             ),
             
             const SizedBox(height: 20),

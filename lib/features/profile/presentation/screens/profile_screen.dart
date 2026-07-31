@@ -13,6 +13,7 @@ import 'package:eyez/features/profile/presentation/providers/history_providers.d
 import 'package:eyez/features/profile/presentation/screens/platform_channel_screen.dart';
 
 import 'package:eyez/features/profile/presentation/providers/profile_tabs_provider.dart';
+import '../../../../shared/widgets/brand_icons.dart';
 
 import 'settings_screen.dart';
 
@@ -168,29 +169,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 },
                 child: Column(
                   children: [
-                    Container(
-                      width: 47,
-                      height: 47,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [AppColors.neonCyan, AppColors.neonBlue],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x3300D2FF), // AppColors.neonCyan.withValues(alpha: 0.2)
-                            blurRadius: 7,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          platform.substring(0, 1).toUpperCase(),
-                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                    PlatformIcon(
+                      name: platform,
+                      size: 47,
+                      isCircular: true,
                     ),
                     const SizedBox(height: 7),
                     Text(

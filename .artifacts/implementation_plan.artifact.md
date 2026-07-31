@@ -1,48 +1,35 @@
-# Plan d'implémentation - Icônes Officielles, Filtrage Explorer et Diversité
+# Plan d'implémentation - Logo Haute Fidélité (Neon Cyberpunk)
 
-Ce plan vise à rendre l'explorateur plus fonctionnel (filtrage par genre et plateforme), à corriger le manque de diversité des données dans l'explorateur, et à intégrer les icônes de marque avec leurs couleurs officielles.
+Ce plan vise à recréer l'image du logo fournie en utilisant du code Flutter (`CustomPainter`) pour obtenir un rendu "parfait", indépendant de la résolution (vectoriel), et optimisé pour les performances.
 
 ## Modifications proposées
 
-### 1. Enrichissement des Données et Filtrage
-- **TMDB Service** :
-    - Ajouter une méthode pour récupérer du contenu par **Genre**.
-    - Améliorer la récupération pour inclure les plateformes de streaming même dans les listes simples.
-- **Providers Explorer** :
-    - Ajouter `selectedGenreProvider` (StateProvider).
-    - Mettre à jour `filteredContentProvider` pour écouter le genre sélectionné.
+### 1. Refonte du `EyeLogo` (Design Haute Fidélité)
+- **Structure Multi-Couches** : Dessiner plusieurs chemins concentriques pour simuler les "tubes néon" de la paupière.
+- **Effets de Lueur (Glow)** : Utiliser des `MaskFilter.blur` successifs pour créer l'effet de halo magenta/violet intense.
+- **Iris Électrique** : Recréer l'iris avec un dégradé radial cyan ultra-brillant et une texture de "fibre optique".
+- **Pupille Glossy** : Ajouter des reflets spéculaires nets et des ombres portées pour un aspect 3D/verre.
 
-### 2. Interface Explorateur (Explorer)
-- **Genres** : Rendre les badges de genres cliquables pour filtrer la grille de tendances.
-- **Plateformes** :
-    - Utiliser les icônes officielles (Logos).
-    - Rendre les logos cliquables pour naviguer vers la page de la chaîne (`PlatformChannelScreen`).
-- **Diversité** : S'assurer que la grille de tendances affiche les langues et plateformes réelles au lieu d'un défaut "EN/Netflix".
+### 2. Environnement Immersif
+- **Particules/Étoiles** : Ajouter un générateur de particules aléatoires en arrière-plan pour simuler le "cosmos" visible dans l'image.
+- **Reflet au Sol** : Intégrer un dégradé linéaire en bas du widget pour simuler la lumière se reflétant sur une surface.
 
-### 3. Icônes de Marque (Auth & Explorer)
-- **Google** : Créer un widget `GoogleColoredIcon` pour afficher le logo "G" avec ses 4 couleurs officielles.
-- **Plateformes** : Utiliser des couleurs et icônes plus fidèles pour Netflix (Rouge), Disney+ (Bleu), Prime Video (Cyan/Bleu), Apple TV (Blanc/Gris).
+### 3. Optimisation des Performances
+- **Peinture Statique** : S'assurer que le `shouldRepaint` retourne `false` pour éviter des calculs inutiles si la taille ne change pas.
+- **Calculs Pré-calculés** : Mettre en cache les chemins (`Path`) complexes.
 
 ## Détails Techniques
 
-### [MODIFY] [tmdb_service.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/core/services/tmdb_service.dart)
-- Ajouter `getMoviesByGenre(int genreId)`.
-- Extraire la logique de "enrichissement plateforme" dans une méthode réutilisable pour que l'Explorateur en profite aussi.
-
-### [MODIFY] [explorer_providers.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/explorer/presentation/providers/explorer_providers.dart)
-- Ajouter la gestion de l'état du genre sélectionné.
-
-### [MODIFY] [explorer_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/explorer/presentation/screens/explorer_screen.dart)
-- Connecter l'UI aux nouveaux providers de filtrage.
-- Ajouter la navigation vers les chaînes.
-
-### [NEW] [BrandIcons](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/brand_icons.dart)
-- Créer un composant pour le logo Google multicolore.
+### [MODIFY] [eye_logo.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/eye_logo.dart)
+- Remplacement du dessin actuel par une implémentation multi-couches (Outer Glow, Neon Tubes, Iris Glow, Pupil, Specular).
+- Ajout d'une boucle pour dessiner les "étoiles" en arrière-plan.
 
 ## Plan de vérification
 
-### Tests Manuels
-- [ ] Vérifier que cliquer sur "Action" filtre les films pour n'afficher que de l'action.
-- [ ] Vérifier que cliquer sur le logo Netflix ouvre la page Netflix.
-- [ ] Confirmer que l'icône Google dans l'Auth est bien en 4 couleurs.
-- [ ] Vérifier que l'Explorateur affiche maintenant des films en Chinois/Français/etc. comme l'Accueil.
+### Tests Visuels
+- [ ] Comparer le rendu du SplashScreen avec l'image originale.
+- [ ] Vérifier que le logo reste net lors des changements d'échelle (size variable).
+- [ ] Confirmer que l'effet de néon ne cause pas de ralentissements (jank) lors des transitions.
+
+> [!NOTE]
+> En utilisant du code pour dessiner le logo, nous garantissons une qualité "Rétina/4K" sans alourdir le poids de l'APK (0 octets d'images ajoutés).

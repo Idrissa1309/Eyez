@@ -256,95 +256,88 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
   Widget build(BuildContext context) {
     final posterPath = widget.movie['poster_path'];
 
-    return GestureDetector(
-      onLongPress: () {
-        showDialog(
-          context: context,
-          barrierColor: Colors.black54,
-          builder: (context) => InteractionOverlay(
-            videoId: widget.movie['id'].toString(),
-            movie: widget.movie,
+    Widget content = Stack(
+      fit: StackFit.expand,
+      children: [
+        // 1. Cinematic Backdrop
+        if (posterPath != null)
+          CachedNetworkImage(
+            imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
+            fit: BoxFit.cover,
           ),
-        );
-      },
-      onTap: _togglePlay,
-      onDoubleTap: _handleDoubleTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Cinematic Backdrop
-          if (posterPath != null)
-            CachedNetworkImage(
-              imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
-              fit: BoxFit.cover,
-            ),
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(color: Colors.black.withValues(alpha: 0.5)),
-          ),
-          
-          // 2. Video Surface with Super-Scale & Crop for Web
-          if (_initialized)
-            Center(
-              child: kIsWeb 
-                ? Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // The Player
-                      OverflowBox(
-                        maxWidth: double.infinity,
-                        maxHeight: double.infinity,
-                        child: Transform.scale(
-                          scale: 1.5, // Slightly increased to be safer
-                          child: FittedBox(
-                            fit: BoxFit.cover,
-                            child: SizedBox(
-                              width: MediaQuery.of(context).size.width,
-                              height: MediaQuery.of(context).size.width * (9 / 16),
-                              child: YoutubePlayer(controller: _webController!),
-                            ),
+        BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(color: Colors.black.withValues(alpha: 0.5)),
+        ),
+        
+        // 2. Video Surface
+        if (_initialized)
+          Center(
+            child: kIsWeb 
+              ? Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    OverflowBox(
+                      maxWidth: double.infinity,
+                      maxHeight: double.infinity,
+                      child: Transform.scale(
+                        scale: 1.4,
+                        child: FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width: MediaQuery.of(context).size.width,
+                            height: MediaQuery.of(context).size.width * (9 / 16),
+                            child: YoutubePlayer(controller: _webController!),
                           ),
                         ),
                       ),
-                      // Poster Overlay until video starts (hides the red play button)
-                      if (!_webVideoStarted && posterPath != null)
-                        Positioned.fill(
-                          child: CachedNetworkImage(
-                            imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
-                            fit: BoxFit.cover,
-                          ),
+                    ),
+                    if (!_webVideoStarted && posterPath != null)
+                      Positioned.fill(
+                        child: CachedNetworkImage(
+                          imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
+                          fit: BoxFit.cover,
                         ),
-                      // Extra protection for corners where YouTube logo/info might show
-                      if (kIsWeb) ...[
-                         Positioned(top: 0, left: 0, right: 0, height: 100, child: Container(color: Colors.transparent)),
-                         Positioned(bottom: 0, left: 0, right: 0, height: 100, child: Container(color: Colors.transparent)),
-                      ],
-                    ],
-                  )
-                : AspectRatio(
-                    aspectRatio: _nativeController!.value.aspectRatio,
-                    child: VideoPlayer(_nativeController!),
-                  ),
-            )
-          else if (_error != null)
-            Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
-          else
-            const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
+                      ),
+                  ],
+                )
+              : AspectRatio(
+                  aspectRatio: _nativeController!.value.aspectRatio,
+                  child: VideoPlayer(_nativeController!),
+                ),
+          )
+        else if (_error != null)
+          Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+        else
+          const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
 
-          // 2b. Safety Black-out Layer for Web (Bottom-Right logo protection)
-          if (kIsWeb && _initialized)
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                width: 150,
-                height: 50,
-                color: Colors.black, // Hides "Watch on YouTube" if zoom fails
+        // 2b. Interaction Layer for Web (Captures taps above Iframe)
+        if (kIsWeb)
+          Positioned.fill(
+            child: PointerInterceptor(
+              intercepting: true,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _togglePlay,
+                onDoubleTap: _handleDoubleTap,
+                onLongPress: () {
+                  showDialog(
+                    context: context,
+                    barrierColor: Colors.black54,
+                    builder: (context) => InteractionOverlay(
+                      videoId: widget.movie['id'].toString(),
+                      movie: widget.movie,
+                    ),
+                  );
+                },
+                child: Container(color: Colors.transparent),
               ),
             ),
+          ),
 
-          // Legibility Gradient
-          Positioned.fill(
+        // Legibility Gradient
+        Positioned.fill(
+          child: IgnorePointer(
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -359,9 +352,11 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
               ),
             ),
           ),
+        ),
 
-          if (_showIcon)
-            PointerInterceptor(
+        if (_showIcon)
+          PointerInterceptor(
+            child: IgnorePointer(
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(20),
@@ -370,41 +365,69 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
                 ),
               ),
             ),
-          
-          _buildHeartAnimation(),
+          ),
+        
+        _buildHeartAnimation(),
 
-          PointerInterceptor(child: _buildInfoOverlay()),
-          
-          if (_initialized && !kIsWeb)
-            Positioned(
-              bottom: 87,
-              left: 0,
-              right: 0,
-              child: VideoProgressIndicator(
-                _nativeController!,
-                allowScrubbing: true,
-                colors: VideoProgressColors(
-                  playedColor: widget.movie['accent_color'] ?? AppColors.neonCyan,
-                  bufferedColor: Colors.white24,
-                  backgroundColor: Colors.white10,
-                ),
-              ),
-            ),
-
-          PointerInterceptor(
-            child: Positioned(
-              top: 60,
-              right: 20,
-              child: IconButton(
-                icon: const Icon(Icons.search, color: Colors.white, size: 28),
-                onPressed: () {
-                  ref.read(navigationIndexProvider.notifier).state = 1; // Go to Explorer tab
-                },
-              ),
+        PointerInterceptor(
+          child: _buildInfoOverlay(),
+        ),
+        
+        // 5. Progress Indicator
+        if (_initialized)
+          Positioned(
+            bottom: 87,
+            left: 10,
+            right: 10,
+            child: PointerInterceptor(
+              child: kIsWeb 
+                ? _WebVideoProgressIndicator(
+                    controller: _webController!,
+                    playedColor: widget.movie['accent_color'] ?? AppColors.neonCyan,
+                  )
+                : VideoProgressIndicator(
+                    _nativeController!,
+                    allowScrubbing: true,
+                    colors: VideoProgressColors(
+                      playedColor: widget.movie['accent_color'] ?? AppColors.neonCyan,
+                      bufferedColor: Colors.white24,
+                      backgroundColor: Colors.white10,
+                    ),
+                  ),
             ),
           ),
-        ],
-      ),
+
+        PointerInterceptor(
+          child: Positioned(
+            top: 60,
+            right: 20,
+            child: IconButton(
+              icon: const Icon(Icons.search, color: Colors.white, size: 28),
+              onPressed: () {
+                ref.read(navigationIndexProvider.notifier).state = 1; // Go to Explorer tab
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (kIsWeb) return content;
+
+    return GestureDetector(
+      onTap: _togglePlay,
+      onDoubleTap: _handleDoubleTap,
+      onLongPress: () {
+        showDialog(
+          context: context,
+          barrierColor: Colors.black54,
+          builder: (context) => InteractionOverlay(
+            videoId: widget.movie['id'].toString(),
+            movie: widget.movie,
+          ),
+        );
+      },
+      child: content,
     );
   }
 
@@ -485,6 +508,35 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
           style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ),
+    );
+  }
+}
+
+class _WebVideoProgressIndicator extends StatelessWidget {
+  final YoutubePlayerController controller;
+  final Color playedColor;
+
+  const _WebVideoProgressIndicator({
+    required this.controller,
+    required this.playedColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<YoutubeVideoState>(
+      stream: controller.videoStateStream,
+      builder: (context, snapshot) {
+        final position = snapshot.data?.position.inMilliseconds.toDouble() ?? 0.0;
+        final duration = controller.value.metaData.duration.inMilliseconds.toDouble();
+        final progress = duration > 0 ? position / duration : 0.0;
+
+        return LinearProgressIndicator(
+          value: progress,
+          backgroundColor: Colors.white10,
+          valueColor: AlwaysStoppedAnimation<Color>(playedColor),
+          minHeight: 2,
+        );
+      },
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/tmdb_service.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../shared/widgets/brand_icons.dart';
 import '../../../home/presentation/providers/interaction_providers.dart';
 import '../../../home/presentation/widgets/movie_details_sheet.dart';
 import '../../../explorer/presentation/providers/explorer_providers.dart';
@@ -49,7 +50,11 @@ class PlatformChannelScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final String normalizedName = platformData.keys.firstWhere(
-      (k) => platformName.contains(k) || k.contains(platformName),
+      (k) {
+        final key = k.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+        final name = platformName.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+        return key.contains(name) || name.contains(key);
+      },
       orElse: () => platformName,
     );
     
@@ -131,20 +136,10 @@ class PlatformChannelScreen extends ConsumerWidget {
               right: 20,
               child: Row(
                 children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                      color: Colors.black,
-                    ),
-                    child: Center(
-                      child: Text(
-                        name.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                  PlatformIcon(
+                    name: name,
+                    size: 60,
+                    isCircular: true,
                   ),
                   const SizedBox(width: 15),
                   Expanded(
@@ -196,10 +191,9 @@ class PlatformChannelScreen extends ConsumerWidget {
   }
 
   Widget _buildPopularContent(BuildContext context, WidgetRef ref) {
-    // For now, we reuse trending data as "popular" for the platform
-    final trending = ref.watch(trendingProvider);
+    final platformContent = ref.watch(platformContentProvider(platformName));
     
-    return trending.when(
+    return platformContent.when(
       data: (items) => GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),

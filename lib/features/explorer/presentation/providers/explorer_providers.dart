@@ -34,7 +34,7 @@ final filteredContentProvider = FutureProvider<List<dynamic>>((ref) async {
       return service.getMusicContent();
     case 'Pour toi':
     default:
-      return service.getTrending();
+      return service.getTrendingEnriched();
   }
 });
 
@@ -44,4 +44,8 @@ final searchResultsProvider = FutureProvider<List<dynamic>>((ref) async {
   final query = ref.watch(searchQueryProvider);
   if (query.isEmpty) return [];
   return ref.watch(tmdbServiceProvider).search(query);
+});
+
+final platformContentProvider = FutureProvider.family<List<dynamic>, String>((ref, platformName) async {
+  return ref.watch(tmdbServiceProvider).getMoviesByProvider(platformName);
 });

@@ -1,14 +1,9 @@
-- [x] **Infrastructure & Data**
-    - [x] Unifier la logique d'enrichissement (Langues/Plateformes) dans `TMDBService`
-    - [x] Ajouter `getMoviesByGenre` et `getMoviesByPlatform`
-    - [x] Mettre à jour `explorer_providers.dart` avec le support du Genre
-- [x] **Composants Visuels**
-    - [x] Créer `BrandIcons` (Google multicolore, Logos Plateformes)
-    - [x] Mettre à jour les écrans d'Authentification (Login/Signup)
-- [x] **Interface Explorer**
-    - [x] Implémenter le filtrage par Genre (clic badge)
-    - [x] Implémenter la redirection par Plateforme (clic logo)
-    - [x] Unifier l'affichage (Diversité des langues/chaînes)
-- [x] **Vérification**
-    - [x] Tester les filtres
-    - [x] Vérifier la diversité des données
+- `[x]` **Développement Logo Haute Fidélité**
+    - `[x]` Implémenter le fond étoilé (Cosmos)
+    - `[x]` Créer les couches de néon concentriques (Eyelid)
+    - `[x]` Développer l'iris électrique (Cyan Glow)
+    - `[x]` Ajouter les reflets de pupille haute définition
+    - `[x]` Intégrer le reflet de sol (Floor Reflection)
+- `[x]` **Vérification & Intégration**
+    - `[x]` Ajuster les couleurs pour correspondre exactement à l'image
+    - `[x]` Vérifier le rendu sur le SplashScreen

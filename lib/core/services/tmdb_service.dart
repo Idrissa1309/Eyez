@@ -30,6 +30,16 @@ class TMDBService {
     'ru': 'Russe',
   };
 
+  static const Map<String, int> platformProviderIds = {
+    'netflix': 8,
+    'disney+': 337,
+    'amazon prime video': 119,
+    'prime video': 119,
+    'apple tv+': 350,
+    'apple tv': 350,
+    'crunchyroll': 283,
+  };
+
   static String getLanguageName(String? code) {
     if (code == null) return 'Inconnue';
     final lowerCode = code.toLowerCase();
@@ -111,6 +121,28 @@ class TMDBService {
     try {
       final response = await _dio.get('/discover/movie', queryParameters: {
         'with_genres': genreId.toString(),
+      });
+      return _enrichItems(response.data['results']);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMoviesByProvider(String platformName) async {
+    try {
+      final searchName = platformName.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+      final providerId = platformProviderIds.entries.firstWhere(
+        (e) {
+          final key = e.key.replaceAll('+', '').replaceAll(' ', '');
+          return key.contains(searchName) || searchName.contains(key);
+        },
+        orElse: () => const MapEntry('netflix', 8),
+      ).value;
+
+      final response = await _dio.get('/discover/movie', queryParameters: {
+        'with_watch_providers': providerId.toString(),
+        'watch_region': 'FR',
+        'sort_by': 'popularity.desc',
       });
       return _enrichItems(response.data['results']);
     } catch (e) {

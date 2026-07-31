@@ -253,7 +253,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             ),
             child: Row(
               children: [
-                PlatformIcon(name: p, size: 12),
+                PlatformIcon(name: p, size: 10),
                 const SizedBox(width: 5),
                 Text(
                   p,
@@ -285,7 +285,6 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
           final rating = movie['vote_average']?.toStringAsFixed(1) ?? 'N/A';
           final title = movie['title'] ?? movie['name'] ?? '';
           final platform = movie['platform'] ?? 'Netflix';
-          final language = movie['original_language_name'] ?? 'Inconnu';
 
           return GestureDetector(
             onTap: () => _showMovieDetails(context, movie),
@@ -324,22 +323,6 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                                 style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.bold),
                               ),
                             ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.white10),
-                          ),
-                          child: Text(
-                            language,
-                            style: const TextStyle(color: Colors.white, fontSize: 6, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),

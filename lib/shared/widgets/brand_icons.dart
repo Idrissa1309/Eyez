@@ -1,4 +1,6 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class GoogleColoredIcon extends StatelessWidget {
@@ -13,8 +15,6 @@ class GoogleColoredIcon extends StatelessWidget {
       child: Stack(
         children: [
           FaIcon(FontAwesomeIcons.google, size: size, color: Colors.white),
-          // We can use a shader mask or just leave it white for simplicity if FontAwesome doesn't support layers
-          // But to be "true colors", we use a ShaderMask
           ShaderMask(
             blendMode: BlendMode.srcIn,
             shaderCallback: (Rect bounds) {
@@ -41,26 +41,70 @@ class GoogleColoredIcon extends StatelessWidget {
 class PlatformIcon extends StatelessWidget {
   final String name;
   final double size;
-  const PlatformIcon({super.key, required this.name, this.size = 18});
+  final bool isCircular;
+
+  const PlatformIcon({
+    super.key, 
+    required this.name, 
+    this.size = 18,
+    this.isCircular = false,
+  });
+
+  static const Map<String, String> _logoUrls = {
+    'netflix': 'https://upload.wikimedia.org/wikipedia/commons/0/03/Netflix-icon.png',
+    'disney+': 'https://cdn.sortiraparis.com/images/80/69688/1115446-logo-disney.jpg',
+    'amazon prime video': 'https://www.pngall.com/wp-content/uploads/15/Amazon-Prime-Video-Logo-PNG-Cutout.png',
+    'prime video': 'https://www.pngall.com/wp-content/uploads/15/Amazon-Prime-Video-Logo-PNG-Cutout.png',
+    'apple tv+': 'https://upload.wikimedia.org/wikipedia/commons/a/ad/AppleTVLogo.svg',
+    'crunchyroll': 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Crunchyroll_logo_.webp',
+  };
 
   @override
   Widget build(BuildContext context) {
-    switch (name.toLowerCase()) {
-      case 'netflix':
-        return FaIcon(FontAwesomeIcons.n, color: const Color(0xFFE50914), size: size);
-      case 'amazon prime video':
-      case 'prime video':
-        return FaIcon(FontAwesomeIcons.p, color: const Color(0xFF00A8E1), size: size);
-      case 'disney+':
-      case 'disney':
-        return FaIcon(FontAwesomeIcons.d, color: const Color(0xFF113CCF), size: size);
-      case 'apple tv+':
-      case 'apple tv':
-        return FaIcon(FontAwesomeIcons.apple, color: Colors.white, size: size);
-      case 'crunchyroll':
-        return FaIcon(FontAwesomeIcons.c, color: const Color(0xFFF47521), size: size);
-      default:
-        return Icon(Icons.play_circle_fill, color: Colors.white, size: size);
+    final normalized = name.toLowerCase();
+    final url = _logoUrls[normalized];
+
+    Widget icon;
+    if (url != null) {
+      if (url.endsWith('.svg')) {
+        icon = SvgPicture.network(
+          url,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          placeholderBuilder: (context) => _buildPlaceholder(),
+        );
+      } else {
+        icon = CachedNetworkImage(
+          imageUrl: url,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          placeholder: (context, url) => _buildPlaceholder(),
+          errorWidget: (context, url, error) => _buildPlaceholder(),
+        );
+      }
+    } else {
+      icon = _buildPlaceholder();
     }
+
+    if (isCircular) {
+      return Container(
+        width: size,
+        height: size,
+        padding: EdgeInsets.all(size * 0.15),
+        decoration: const BoxDecoration(
+          color: Colors.black,
+          shape: BoxShape.circle,
+        ),
+        child: icon,
+      );
+    }
+
+    return icon;
+  }
+
+  Widget _buildPlaceholder() {
+    return Icon(Icons.play_circle_fill, color: Colors.white, size: size);
   }
 }
