@@ -60,6 +60,73 @@ class TMDBService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _enrichItems(List<dynamic> items) async {
+    final List<Future<Map<String, dynamic>?>> detailFutures = items.take(20).map((item) async {
+      final id = item['id'];
+      final type = item['media_type'] ?? 'movie';
+      final isAnime = (item['genre_ids'] as List?)?.contains(16) ?? false;
+
+      try {
+        final details = await getDetails(id, type);
+        
+        // Extract streaming providers
+        final List<String> platformNames = [];
+        if (isAnime) platformNames.add('Crunchyroll');
+        
+        final regions = ['FR', 'US', 'JP'];
+        for (var region in regions) {
+          final providers = details['watch/providers']?['results']?[region]?['flatrate'] as List<dynamic>?;
+          if (providers != null) {
+            for (var p in providers) {
+              final name = p['provider_name'] as String;
+              if (!platformNames.contains(name)) platformNames.add(name);
+            }
+          }
+        }
+
+        if (platformNames.isEmpty) platformNames.add('Netflix');
+
+        return <String, dynamic>{
+          ...Map<String, dynamic>.from(item),
+          'platforms': platformNames,
+          'platform': platformNames.first,
+          'accent_color': _getAccentColorForGenre(item['genre_ids']?.first),
+          'original_language_name': getLanguageName(item['original_language']),
+        };
+      } catch (e) {
+        return <String, dynamic>{
+          ...Map<String, dynamic>.from(item),
+          'platforms': ['Netflix'],
+          'platform': 'Netflix',
+          'original_language_name': getLanguageName(item['original_language']),
+        };
+      }
+    }).toList();
+
+    final List<Map<String, dynamic>?> results = await Future.wait(detailFutures);
+    return results.whereType<Map<String, dynamic>>().toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getMoviesByGenre(int genreId) async {
+    try {
+      final response = await _dio.get('/discover/movie', queryParameters: {
+        'with_genres': genreId.toString(),
+      });
+      return _enrichItems(response.data['results']);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getTrendingEnriched() async {
+    try {
+      final response = await _dio.get('/trending/all/day');
+      return _enrichItems(response.data['results']);
+    } catch (e) {
+      return [];
+    }
+  }
+
   Future<List<dynamic>> getTrending() async {
     try {
       final response = await _dio.get('/trending/all/day');
@@ -73,10 +140,10 @@ class TMDBService {
     }
   }
 
-  Future<List<dynamic>> getPopularMovies() async {
+  Future<List<Map<String, dynamic>>> getPopularMovies() async {
     try {
       final response = await _dio.get('/movie/popular');
-      return response.data['results'];
+      return _enrichItems(response.data['results']);
     } catch (e) {
       if (e is DioException) {
         throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
@@ -85,10 +152,10 @@ class TMDBService {
     }
   }
 
-  Future<List<dynamic>> getPopularTVShows() async {
+  Future<List<Map<String, dynamic>>> getPopularTVShows() async {
     try {
       final response = await _dio.get('/tv/popular');
-      return response.data['results'];
+      return _enrichItems(response.data['results']);
     } catch (e) {
       if (e is DioException) {
         throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
@@ -97,12 +164,12 @@ class TMDBService {
     }
   }
 
-  Future<List<dynamic>> getAnimes() async {
+  Future<List<Map<String, dynamic>>> getAnimes() async {
     try {
       final response = await _dio.get('/discover/movie', queryParameters: {
         'with_genres': '16', // Animation
       });
-      return response.data['results'];
+      return _enrichItems(response.data['results']);
     } catch (e) {
       if (e is DioException) {
         throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
@@ -111,12 +178,12 @@ class TMDBService {
     }
   }
 
-  Future<List<dynamic>> getMusicContent() async {
+  Future<List<Map<String, dynamic>>> getMusicContent() async {
     try {
       final response = await _dio.get('/discover/movie', queryParameters: {
         'with_genres': '10402', // Music
       });
-      return response.data['results'];
+      return _enrichItems(response.data['results']);
     } catch (e) {
       if (e is DioException) {
         throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
@@ -194,6 +261,7 @@ class TMDBService {
                 'platforms': platformNames,
                 'platform': platformNames.first,
                 'accent_color': _getAccentColorForGenre(item['genre_ids']?.first),
+                'original_language_name': getLanguageName(item['original_language']),
               };
             }
           }

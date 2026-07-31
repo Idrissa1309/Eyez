@@ -22,7 +22,6 @@ class MovieDetailsSheet extends ConsumerWidget {
     final synopsis = movie?['overview'] ?? 'Aucun synopsis disponible.';
 
     // Watch the list state directly for instant reactivity
-    final myListAsync = ref.watch(myListProvider);
     final isSaved = tmdbId != null && ref.watch(myListProvider.notifier).isSaved(tmdbId);
 
     return Container(

@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme/app_theme.dart';
-import 'core/services/supabase_service.dart';
-import 'features/onboarding/presentation/screens/onboarding_screen.dart';
-import 'shared/widgets/main_navigation.dart';
-
 import 'features/onboarding/presentation/screens/splash_screen.dart';
 
 void main() {

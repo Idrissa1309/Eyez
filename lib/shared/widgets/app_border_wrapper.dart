@@ -58,8 +58,8 @@ class _GradientBorderPainter extends CustomPainter {
     final rect = Offset.zero & size;
     
     // Multi-stop gradient for the border (including Green, Yellow/Jauge, Red)
-    final borderGradient = LinearGradient(
-      colors: const [
+    const borderGradient = LinearGradient(
+      colors: [
         Color(0xFFFF2E93), // Fuchsia
         Color(0xFF9D44FF), // Purple
         Color(0xFF007BFF), // Blue

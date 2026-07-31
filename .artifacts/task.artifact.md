@@ -1,10 +1,14 @@
-- [x] **Data & Logic**
-    - [x] Ajouter `verifyPassword` dans `SupabaseService`
-- [x] **Interface Utilisateur - Paramètres**
-    - [x] Mettre à jour `_showChangePassword` (Validation de l'ancien mot de passe)
-    - [x] Implémenter `_showAbout` (Développeurs: Idrissa & Ousmane Sow)
-    - [x] Connecter "Aide et support" au site externe
-    - [x] Peaufiner les autres rubriques (Thème, Notifications, Langue)
+- [x] **Infrastructure & Data**
+    - [x] Unifier la logique d'enrichissement (Langues/Plateformes) dans `TMDBService`
+    - [x] Ajouter `getMoviesByGenre` et `getMoviesByPlatform`
+    - [x] Mettre à jour `explorer_providers.dart` avec le support du Genre
+- [x] **Composants Visuels**
+    - [x] Créer `BrandIcons` (Google multicolore, Logos Plateformes)
+    - [x] Mettre à jour les écrans d'Authentification (Login/Signup)
+- [x] **Interface Explorer**
+    - [x] Implémenter le filtrage par Genre (clic badge)
+    - [x] Implémenter la redirection par Plateforme (clic logo)
+    - [x] Unifier l'affichage (Diversité des langues/chaînes)
 - [x] **Vérification**
-    - [x] Tester le flux de changement de mot de passe
-    - [x] Vérifier les liens externes
+    - [x] Tester les filtres
+    - [x] Vérifier la diversité des données

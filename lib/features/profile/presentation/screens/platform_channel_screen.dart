@@ -7,7 +7,6 @@ import '../../../../core/services/supabase_service.dart';
 import '../../../home/presentation/providers/interaction_providers.dart';
 import '../../../home/presentation/widgets/movie_details_sheet.dart';
 import '../../../explorer/presentation/providers/explorer_providers.dart';
-import '../providers/my_list_providers.dart';
 
 class PlatformChannelScreen extends ConsumerWidget {
   final String platformName;

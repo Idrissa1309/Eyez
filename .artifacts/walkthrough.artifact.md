@@ -1,27 +1,25 @@
-# Mise à jour des Paramètres et de la Sécurité
+# Icônes Officielles, Diversité et Filtrage Explorer
 
-J'ai finalisé l'écran des paramètres en implémentant les fonctionnalités de sécurité demandées et en ajoutant les informations sur les développeurs.
+J'ai implémenté toutes les améliorations pour rendre l'Explorateur pleinement fonctionnel, diversifié et fidèle aux identités visuelles des marques.
 
 ## Améliorations Apportées
 
-### 1. Sécurité du Compte
-- **Changement de mot de passe sécurisé** : Désormais, l'application exige la saisie de l'**ancien mot de passe** avant d'autoriser une modification. Une vérification est faite en temps réel auprès de Supabase.
-- **Validation** : Ajout de messages d'erreur si l'ancien mot de passe est incorrect ou si les nouveaux mots de passe ne correspondent pas.
+### 1. Icônes de Marque Officielles
+- **Google** : Le bouton de connexion affiche désormais le logo "G" avec ses **4 couleurs officielles** (Bleu, Vert, Jaune, Rouge) grâce à un composant `GoogleColoredIcon`.
+- **Plateformes** : Utilisation des logos et couleurs réels pour **Netflix** (Rouge), **Prime Video** (Bleu ciel), **Disney+** (Bleu marine), **Apple TV+** (Blanc) et **Crunchyroll** (Orange).
 
-### 2. Informations "À propos"
-- Ajout d'une section précisant que l'application est développée par **Idrissa Sow** et **Ousmane Sow**.
-- Intégration du logo et de la version de l'application dans un dialogue stylisé.
+### 2. Diversité des Données dans Explorer
+- **Unification** : J'ai mis à jour le moteur de recherche de l'Explorateur pour qu'il utilise la même logique d'enrichissement que l'Accueil.
+- **Résultat** : Vous verrez désormais les langues réelles (Français, Chinois, Japonais, etc.) et les plateformes de streaming spécifiques sur chaque film dans la grille de l'Explorateur.
 
-### 3. Support Technique
-- Le bouton "Aide et support" redirige désormais vers le site officiel : [https://autorunsite.netlify.app](https://autorunsite.netlify.app).
-
-### 4. Optimisation Visuelle (Réduction de 33%)
-- Conformément à votre demande précédente, toutes les nouvelles interfaces (modales, dialogues, textes des paramètres) ont été conçues avec une taille réduite de 33% pour maximiser l'espace à l'écran.
+### 3. Filtrage Dynamique
+- **Par Genre** : Cliquer sur un genre (Action, Animation, etc.) dans l'Explorateur filtre instantanément la grille pour n'afficher que les vidéos de cette catégorie.
+- **Par Plateforme** : Cliquer sur un logo de plateforme (ex: Netflix) vous redirige directement vers la page de la chaîne dédiée.
 
 ## Détails Techniques
-- **Supabase** : Ajout de la méthode `verifyPassword` pour la validation de session.
-- **Navigation** : Utilisation de `url_launcher` pour les liens externes.
-- **UI** : Uniformisation des styles (Neon, Dark surface) sur l'ensemble de l'écran des paramètres.
+- **TMDB Service** : Unification de la logique via `_enrichItems` pour garantir que toutes les listes (Trending, Popular, Genre) contiennent les noms de langues et les fournisseurs de streaming.
+- **Riverpod** : Ajout du `selectedGenreProvider` pour gérer l'état global du filtrage.
+- **UI Components** : Création de `BrandIcons` pour centraliser les logos de marques avec leurs styles fidèles.
 
 > [!TIP]
-> Vous pouvez tester le changement de mot de passe directement dans les paramètres. Assurez-vous d'avoir une connexion internet active pour la vérification Supabase.
+> Vous pouvez maintenant naviguer dans l'Explorateur comme un vrai catalogue : filtrez par genre, cliquez sur une plateforme pour voir sa chaîne, et profitez de la diversité linguistique du contenu !

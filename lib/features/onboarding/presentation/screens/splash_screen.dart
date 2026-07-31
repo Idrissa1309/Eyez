@@ -14,7 +14,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  String _status = "Démarrage...";
+  String _status = 'Démarrage...';
   bool _showRetry = false;
 
   @override
@@ -27,21 +27,21 @@ class _SplashScreenState extends State<SplashScreen> {
     final stopwatch = Stopwatch()..start();
     if (mounted) {
       setState(() {
-      _status = "Chargement des configurations...";
-      _showRetry = false;
-    });
+        _status = 'Chargement des configurations...';
+        _showRetry = false;
+      });
     }
 
     try {
       // 1. Load environment variables with timeout
-      await dotenv.load(fileName: "assets/.env").timeout(
+      await dotenv.load(fileName: 'assets/.env').timeout(
         const Duration(seconds: 5),
         onTimeout: () {
-          if (mounted) setState(() => _status = "Configuration lente...");
+          if (mounted) setState(() => _status = 'Configuration lente...');
         },
       );
       
-      if (mounted) setState(() => _status = "Connexion au serveur...");
+      if (mounted) setState(() => _status = 'Connexion au serveur...');
 
       // 2. Initialize Supabase with timeout
       await SupabaseService.init().timeout(
@@ -49,9 +49,9 @@ class _SplashScreenState extends State<SplashScreen> {
         onTimeout: () {
           if (mounted) {
             setState(() {
-            _status = "Connexion difficile...";
-            _showRetry = true;
-          });
+              _status = 'Connexion difficile...';
+              _showRetry = true;
+            });
           }
           throw TimeoutException('Supabase timeout');
         },
@@ -78,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _status = "Problème de connexion";
+          _status = 'Problème de connexion';
           _showRetry = true;
         });
       }
@@ -147,7 +147,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 onPressed: _initialize,
                 icon: const Icon(Icons.refresh, color: AppColors.neonCyan),
                 label: const Text(
-                  "RÉESSAYER",
+                  'RÉESSAYER',
                   style: TextStyle(color: AppColors.neonCyan, fontWeight: FontWeight.bold),
                 ),
               ),

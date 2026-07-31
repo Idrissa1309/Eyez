@@ -48,8 +48,8 @@ class _EyePainter extends CustomPainter {
     eyePath.quadraticBezierTo(width / 2, center.dy + height / 1.5, 0, center.dy);
     eyePath.close();
 
-    final borderGradient = LinearGradient(
-      colors: const [
+    const borderGradient = LinearGradient(
+      colors: [
         Color(0xFFFF9F00), // Orange
         Color(0xFFFF2E93), // Fuchsia
         Color(0xFF9D44FF), // Purple
@@ -57,10 +57,10 @@ class _EyePainter extends CustomPainter {
       ],
       begin: Alignment.centerLeft,
       end: Alignment.centerRight,
-    ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    );
 
     final borderPaint = Paint()
-      ..shader = borderGradient
+      ..shader = borderGradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
@@ -76,17 +76,17 @@ class _EyePainter extends CustomPainter {
 
     // 3. Draw the Iris
     final irisRadius = size.width * 0.28;
-    final irisGradient = RadialGradient(
-      colors: const [
+    const irisGradient = RadialGradient(
+      colors: [
         Color(0xFF00D2FF), // Cyan center
         Color(0xFF007BFF), // Blue
         Color(0xFF9D44FF), // Purple
         Color(0xFFFF2E93), // Fuchsia edge
       ],
-      stops: const [0.0, 0.4, 0.7, 1.0],
-    ).createShader(Rect.fromCircle(center: center, radius: irisRadius));
+      stops: [0.0, 0.4, 0.7, 1.0],
+    );
 
-    final irisPaint = Paint()..shader = irisGradient;
+    final irisPaint = Paint()..shader = irisGradient.createShader(Rect.fromCircle(center: center, radius: irisRadius));
     canvas.drawCircle(center, irisRadius, irisPaint);
 
     // 4. Draw Iris Texture (lines)

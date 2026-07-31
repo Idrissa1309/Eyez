@@ -12,6 +12,8 @@ import 'package:eyez/features/profile/presentation/providers/profile_providers.d
 import 'package:eyez/features/profile/presentation/providers/history_providers.dart';
 import 'package:eyez/features/profile/presentation/screens/platform_channel_screen.dart';
 
+import 'package:eyez/features/profile/presentation/providers/profile_tabs_provider.dart';
+
 import 'settings_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -22,8 +24,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  int _activeTab = 0; // 0: Abonnements, 1: Collections, 2: Favoris, 3: Historique
-
   void _showMovieDetails(BuildContext context, dynamic movie) {
     showModalBottomSheet(
       context: context,
@@ -49,9 +49,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 13),
               _buildProfileInfo(profileData),
               const SizedBox(height: 13),
-              _buildStats(myList, likedMovies),
+              const _ProfileStats(),
               const SizedBox(height: 13),
-              _buildTabs(),
+              const _ProfileTabs(),
               const SizedBox(height: 8),
               _buildTabContent(myList, likedMovies),
               const SizedBox(height: 10),
@@ -100,9 +100,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.neonFuchsia, width: 1.5),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
-                  color: AppColors.neonFuchsia.withValues(alpha: 0.3),
+                  color: Color(0x4DFF2E93), // AppColors.neonFuchsia.withValues(alpha: 0.3)
                   blurRadius: 5,
                 ),
               ],
@@ -117,9 +117,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             SupabaseService.currentUser?.userMetadata?['username'] ?? 'Alexis',
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
-          Text(
-            '@${SupabaseService.currentUser?.userMetadata?['username'] ?? 'alexis_cine'}',
-            style: const TextStyle(color: AppColors.neonCyan, fontSize: 8),
+          const Text(
+            '@alexis_cine', // Placeholder for now or actual metadata
+            style: TextStyle(color: AppColors.neonCyan, fontSize: 8),
           ),
           const SizedBox(height: 4),
           Text(
@@ -134,70 +134,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildStats(AsyncValue<List<Map<String, dynamic>>> myList, AsyncValue<List<Map<String, dynamic>>> likedMovies) {
-    final followedPlatforms = ref.watch(followedPlatformsProvider);
-    
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildStat(likedMovies.value?.length.toString() ?? '0', 'J\'aime'),
-        _buildStat(followedPlatforms.value?.length.toString() ?? '0', 'Abonnements'),
-        _buildStat(myList.value?.length.toString() ?? '0', 'Collections'),
-      ],
-    );
-  }
-
-  Widget _buildStat(String value, String label) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white)),
-        Text(label, style: const TextStyle(fontSize: 7, color: AppColors.textSecondary)),
-      ],
-    );
-  }
-
-  Widget _buildTabs() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildTab(0, Icons.movie_outlined, 'Abonnements'),
-        _buildTab(1, Icons.list_alt_outlined, 'Collections'),
-        _buildTab(2, Icons.favorite_border, 'Favoris'),
-        _buildTab(3, Icons.history, 'Historique'),
-      ],
-    );
-  }
-
-  Widget _buildTab(int index, IconData icon, String label) {
-    final isSelected = _activeTab == index;
-    return GestureDetector(
-      onTap: () => setState(() => _activeTab = index),
-      child: Column(
-        children: [
-          Icon(
-            icon, 
-            color: isSelected ? AppColors.neonFuchsia : AppColors.textSecondary, 
-            size: 16
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? AppColors.neonFuchsia : AppColors.textSecondary,
-              fontSize: 7,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          const SizedBox(height: 3),
-          if (isSelected)
-            Container(height: 1.5, width: 13, color: AppColors.neonFuchsia),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTabContent(AsyncValue<List<Map<String, dynamic>>> myList, AsyncValue<List<Map<String, dynamic>>> likedMovies) {
-    if (_activeTab == 0) {
+    final activeTab = ref.watch(profileTabProvider);
+    if (activeTab == 0) {
       // Abonnements Tab (Followed Channels)
       final followedPlatforms = ref.watch(followedPlatformsProvider);
       return followedPlatforms.when(
@@ -232,7 +171,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Container(
                       width: 47,
                       height: 47,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
                           colors: [AppColors.neonCyan, AppColors.neonBlue],
@@ -241,7 +180,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.neonCyan.withValues(alpha: 0.2),
+                            color: Color(0x3300D2FF), // AppColors.neonCyan.withValues(alpha: 0.2)
                             blurRadius: 7,
                           ),
                         ],
@@ -273,13 +212,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
         error: (err, stack) => Center(child: Text('Erreur: $err', style: const TextStyle(color: Colors.red))),
       );
-    } else if (_activeTab == 1) {
+    } else if (activeTab == 1) {
       // Collections Tab
       return _buildGrid(myList, 'Aucun film dans votre collection');
-    } else if (_activeTab == 2) {
+    } else if (activeTab == 2) {
       // Favoris Tab
       return _buildGrid(likedMovies, 'Aucun favori pour le moment');
-    } else if (_activeTab == 3) {
+    } else if (activeTab == 3) {
       // Historique Tab
       final history = ref.watch(historyProvider);
       return _buildHistoryGrid(history, 'Aucun historique récent');
@@ -396,6 +335,103 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         );
       },
       child: const Text('Se déconnecter', style: TextStyle(color: Colors.redAccent)),
+    );
+  }
+}
+
+class _ProfileStats extends ConsumerWidget {
+  const _ProfileStats();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myList = ref.watch(myListProvider);
+    final likedMovies = ref.watch(likedMoviesProvider);
+    final followedPlatforms = ref.watch(followedPlatformsProvider);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _StatItem(value: likedMovies.value?.length.toString() ?? '0', label: 'J\'aime'),
+        _StatItem(value: followedPlatforms.value?.length.toString() ?? '0', label: 'Abonnements'),
+        _StatItem(value: myList.value?.length.toString() ?? '0', label: 'Collections'),
+      ],
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final String value;
+  final String label;
+  const _StatItem({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white)),
+        Text(label, style: const TextStyle(fontSize: 7, color: AppColors.textSecondary)),
+      ],
+    );
+  }
+}
+
+class _ProfileTabs extends ConsumerWidget {
+  const _ProfileTabs();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeTab = ref.watch(profileTabProvider);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _TabItem(index: 0, icon: Icons.movie_outlined, label: 'Abonnements', isSelected: activeTab == 0),
+        _TabItem(index: 1, icon: Icons.list_alt_outlined, label: 'Collections', isSelected: activeTab == 1),
+        _TabItem(index: 2, icon: Icons.favorite_border, label: 'Favoris', isSelected: activeTab == 2),
+        _TabItem(index: 3, icon: Icons.history, label: 'Historique', isSelected: activeTab == 3),
+      ],
+    );
+  }
+}
+
+class _TabItem extends ConsumerWidget {
+  final int index;
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+
+  const _TabItem({
+    required this.index,
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onTap: () => ref.read(profileTabProvider.notifier).state = index,
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: isSelected ? AppColors.neonFuchsia : AppColors.textSecondary,
+            size: 16,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? AppColors.neonFuchsia : AppColors.textSecondary,
+              fontSize: 7,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          const SizedBox(height: 3),
+          if (isSelected)
+            Container(height: 1.5, width: 13, color: AppColors.neonFuchsia),
+        ],
+      ),
     );
   }
 }

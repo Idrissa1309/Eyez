@@ -1,39 +1,48 @@
-# Plan d'implémentation - Finalisation des Paramètres
+# Plan d'implémentation - Icônes Officielles, Filtrage Explorer et Diversité
 
-Ce plan détaille l'implémentation des fonctionnalités manquantes dans l'écran des paramètres, notamment la gestion sécurisée du changement de mot de passe, les informations "À propos" et le support.
+Ce plan vise à rendre l'explorateur plus fonctionnel (filtrage par genre et plateforme), à corriger le manque de diversité des données dans l'explorateur, et à intégrer les icônes de marque avec leurs couleurs officielles.
 
 ## Modifications proposées
 
-### 1. Sécurisation du Changement de Mot de Passe
-- **Vérification** : Ajouter une étape de vérification de l'ancien mot de passe avant d'autoriser la modification.
-- **Logique** : Utiliser la méthode `signIn` de Supabase avec l'email actuel et l'ancien mot de passe pour confirmer l'identité.
-- **UI** : Mettre à jour le dialogue pour inclure trois champs : Ancien mot de passe, Nouveau mot de passe, Confirmation.
+### 1. Enrichissement des Données et Filtrage
+- **TMDB Service** :
+    - Ajouter une méthode pour récupérer du contenu par **Genre**.
+    - Améliorer la récupération pour inclure les plateformes de streaming même dans les listes simples.
+- **Providers Explorer** :
+    - Ajouter `selectedGenreProvider` (StateProvider).
+    - Mettre à jour `filteredContentProvider` pour écouter le genre sélectionné.
 
-### 2. Section "À propos"
-- **Contenu** : Afficher un modal ou un dialogue précisant que l'application est développée par **Idrissa Sow** et **Ousmane Sow**.
-- **Design** : Utiliser un style épuré avec le logo de l'application.
+### 2. Interface Explorateur (Explorer)
+- **Genres** : Rendre les badges de genres cliquables pour filtrer la grille de tendances.
+- **Plateformes** :
+    - Utiliser les icônes officielles (Logos).
+    - Rendre les logos cliquables pour naviguer vers la page de la chaîne (`PlatformChannelScreen`).
+- **Diversité** : S'assurer que la grille de tendances affiche les langues et plateformes réelles au lieu d'un défaut "EN/Netflix".
 
-### 3. Support & Aide
-- **Lien externe** : Configurer le bouton "Aide et support" pour ouvrir le site [https://autorunsite.netlify.app](https://autorunsite.netlify.app) via `url_launcher`.
-
-### 4. Autres fonctionnalités (Général)
-- **Thème & Notifications** : Ajouter des messages informatifs ou des dialogues simples pour indiquer que ces fonctionnalités sont gérées automatiquement par le système pour le moment.
+### 3. Icônes de Marque (Auth & Explorer)
+- **Google** : Créer un widget `GoogleColoredIcon` pour afficher le logo "G" avec ses 4 couleurs officielles.
+- **Plateformes** : Utiliser des couleurs et icônes plus fidèles pour Netflix (Rouge), Disney+ (Bleu), Prime Video (Cyan/Bleu), Apple TV (Blanc/Gris).
 
 ## Détails Techniques
 
-### [MODIFY] [supabase_service.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/core/services/supabase_service.dart)
-- Ajouter une méthode `verifyPassword(String password)` qui tente une re-connexion silencieuse.
+### [MODIFY] [tmdb_service.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/core/services/tmdb_service.dart)
+- Ajouter `getMoviesByGenre(int genreId)`.
+- Extraire la logique de "enrichissement plateforme" dans une méthode réutilisable pour que l'Explorateur en profite aussi.
 
-### [MODIFY] [settings_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/profile/presentation/screens/settings_screen.dart)
-- Implémenter `_showAbout`.
-- Mettre à jour `_showChangePassword` avec la nouvelle logique de validation.
-- Connecter le bouton Support à `url_launcher`.
+### [MODIFY] [explorer_providers.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/explorer/presentation/providers/explorer_providers.dart)
+- Ajouter la gestion de l'état du genre sélectionné.
+
+### [MODIFY] [explorer_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/explorer/presentation/screens/explorer_screen.dart)
+- Connecter l'UI aux nouveaux providers de filtrage.
+- Ajouter la navigation vers les chaînes.
+
+### [NEW] [BrandIcons](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/brand_icons.dart)
+- Créer un composant pour le logo Google multicolore.
 
 ## Plan de vérification
 
 ### Tests Manuels
-- [ ] Tenter de changer le mot de passe avec un mauvais "ancien mot de passe" (doit échouer).
-- [ ] Vérifier que le changement fonctionne avec le bon ancien mot de passe.
-- [ ] Cliquer sur "À propos" et vérifier les noms des développeurs.
-- [ ] Cliquer sur "Aide et support" et vérifier l'ouverture du navigateur.
-- [ ] Vérifier que la réduction de taille (33%) est préservée dans les nouveaux éléments.
+- [ ] Vérifier que cliquer sur "Action" filtre les films pour n'afficher que de l'action.
+- [ ] Vérifier que cliquer sur le logo Netflix ouvre la page Netflix.
+- [ ] Confirmer que l'icône Google dans l'Auth est bien en 4 couleurs.
+- [ ] Vérifier que l'Explorateur affiche maintenant des films en Chinois/Français/etc. comme l'Accueil.

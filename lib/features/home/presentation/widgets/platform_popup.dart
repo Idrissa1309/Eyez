@@ -129,15 +129,15 @@ class PlatformPopup extends ConsumerWidget {
                 decoration: BoxDecoration(
                   gradient: isFollowing 
                       ? null 
-                      : LinearGradient(
-                          colors: [const Color(0xFF007BFF), const Color(0xFF00D2FF)],
+                      : const LinearGradient(
+                          colors: [Color(0xFF007BFF), Color(0xFF00D2FF)],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
                   color: isFollowing ? Colors.white10 : null,
                   borderRadius: BorderRadius.circular(15),
                   border: isFollowing ? Border.all(color: Colors.white10) : null,
-                  boxShadow: isFollowing ? [] : [
+                  boxShadow: isFollowing ? const [] : [
                     BoxShadow(
                       color: AppColors.neonBlue.withValues(alpha: 0.3),
                       blurRadius: 15,

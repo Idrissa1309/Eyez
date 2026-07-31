@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../shared/widgets/neon_button.dart';
 import '../../../../shared/widgets/social_button.dart';
+import '../../../../shared/widgets/brand_icons.dart';
 import '../../../../shared/widgets/main_navigation.dart';
 import '../../../../shared/widgets/app_border_wrapper.dart';
 import '../../../../shared/widgets/eye_logo.dart';
@@ -133,10 +135,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _handleLogin,
                   ),
                 const SizedBox(height: 40),
-                Row(
+                const Row(
                   children: [
                     Expanded(child: Divider(color: Colors.white10, thickness: 1)),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 20),
                       child: Text('OU', style: TextStyle(color: Colors.white38, fontSize: 14)),
                     ),
@@ -145,23 +147,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 40),
                 SocialButton(
-                  icon: Icons.g_mobiledata,
+                  icon: const GoogleColoredIcon(),
                   text: 'Continuer avec Google',
                   onPressed: () {},
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 SocialButton(
-                  icon: Icons.apple,
+                  icon: const FaIcon(FontAwesomeIcons.apple, color: Colors.white, size: 19),
                   text: 'Continuer avec Apple',
                   onPressed: () {},
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 SocialButton(
-                  icon: Icons.facebook,
+                  icon: const FaIcon(FontAwesomeIcons.facebook, color: Color(0xFF1877F2), size: 19),
                   text: 'Continuer avec Facebook',
                   onPressed: () {},
                 ),
-                const SizedBox(height: 50),
+                const SizedBox(height: 35),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

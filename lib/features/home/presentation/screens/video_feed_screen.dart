@@ -85,6 +85,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
   YoutubePlayerController? _webController;
   
   bool _initialized = false;
+  bool _webVideoStarted = false;
   String? _error;
   bool _showIcon = false;
   IconData _lastIcon = Icons.play_arrow;
@@ -108,18 +109,30 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     if (kIsWeb) {
       _webController = YoutubePlayerController.fromVideoId(
         videoId: videoKey,
+        autoPlay: true,
         params: const YoutubePlayerParams(
           showControls: false,
           showFullscreenButton: false,
-          mute: false,
+          mute: true,
           loop: true,
           showVideoAnnotations: false,
           strictRelatedVideos: true,
+          enableCaption: false,
+          color: 'white',
         ),
       );
       if (mounted) {
         setState(() => _initialized = true);
       }
+      
+      // Listen for video start to hide the red button/thumbnail
+      _webController!.stream.listen((state) {
+        if (state.playerState == PlayerState.playing && !_webVideoStarted) {
+          if (mounted) {
+            setState(() => _webVideoStarted = true);
+          }
+        }
+      });
     } else {
       final yt = YoutubeExplode();
       try {
@@ -139,7 +152,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
           });
       } catch (e) {
         if (mounted) {
-          setState(() => _error = "Erreur de chargement.");
+          setState(() => _error = 'Erreur de chargement.');
         }
       } finally {
         yt.close();
@@ -158,6 +171,8 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
         ref.read(historyProvider.notifier).addToHistory(widget.movie);
       } else {
         _webController?.pauseVideo();
+        // Reset web video started state when losing focus to show poster again if needed
+        // No, maybe keep it.
       }
     } else {
       if (widget.isFocused) {
@@ -272,20 +287,39 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
           if (_initialized)
             Center(
               child: kIsWeb 
-                ? OverflowBox(
-                    maxWidth: double.infinity,
-                    maxHeight: double.infinity,
-                    child: Transform.scale(
-                      scale: 1.4, // Aggressive zoom to hide title and logo
-                      child: FittedBox(
-                        fit: BoxFit.cover,
-                        child: SizedBox(
-                          width: MediaQuery.of(context).size.width,
-                          height: MediaQuery.of(context).size.width * (9 / 16),
-                          child: YoutubePlayer(controller: _webController!),
+                ? Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // The Player
+                      OverflowBox(
+                        maxWidth: double.infinity,
+                        maxHeight: double.infinity,
+                        child: Transform.scale(
+                          scale: 1.5, // Slightly increased to be safer
+                          child: FittedBox(
+                            fit: BoxFit.cover,
+                            child: SizedBox(
+                              width: MediaQuery.of(context).size.width,
+                              height: MediaQuery.of(context).size.width * (9 / 16),
+                              child: YoutubePlayer(controller: _webController!),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      // Poster Overlay until video starts (hides the red play button)
+                      if (!_webVideoStarted && posterPath != null)
+                        Positioned.fill(
+                          child: CachedNetworkImage(
+                            imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      // Extra protection for corners where YouTube logo/info might show
+                      if (kIsWeb) ...[
+                         Positioned(top: 0, left: 0, right: 0, height: 100, child: Container(color: Colors.transparent)),
+                         Positioned(bottom: 0, left: 0, right: 0, height: 100, child: Container(color: Colors.transparent)),
+                      ],
+                    ],
                   )
                 : AspectRatio(
                     aspectRatio: _nativeController!.value.aspectRatio,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../shared/widgets/neon_button.dart';
 import '../../../../shared/widgets/social_button.dart';
+import '../../../../shared/widgets/brand_icons.dart';
 import '../../../../shared/widgets/main_navigation.dart';
 import '../../../../shared/widgets/app_border_wrapper.dart';
 
@@ -193,10 +195,10 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               
               const SizedBox(height: 40),
-              Row(
+              const Row(
                 children: [
                   Expanded(child: Divider(color: Colors.white10, thickness: 1)),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20),
                     child: Text('OU', style: TextStyle(color: Colors.white38, fontSize: 14)),
                   ),
@@ -206,18 +208,24 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 40),
               
               SocialButton(
-                icon: Icons.g_mobiledata,
+                icon: const GoogleColoredIcon(),
                 text: 'S\'inscrire avec Google',
                 onPressed: () {},
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               SocialButton(
-                icon: Icons.apple,
+                icon: const FaIcon(FontAwesomeIcons.apple, color: Colors.white, size: 19),
                 text: 'S\'inscrire avec Apple',
                 onPressed: () {},
               ),
+              const SizedBox(height: 12),
+              SocialButton(
+                icon: const FaIcon(FontAwesomeIcons.facebook, color: Color(0xFF1877F2), size: 19),
+                text: 'S\'inscrire avec Facebook',
+                onPressed: () {},
+              ),
               
-              const SizedBox(height: 50),
+              const SizedBox(height: 35),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
