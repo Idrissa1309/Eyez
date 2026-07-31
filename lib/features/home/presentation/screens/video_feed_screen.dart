@@ -10,12 +10,15 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/providers/ambient_provider.dart';
+import '../../../../core/providers/navigation_provider.dart';
 import '../../../../core/services/tmdb_service.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../widgets/interaction_overlay.dart';
 import '../widgets/movie_details_sheet.dart';
 import '../widgets/platform_popup.dart';
 import '../providers/video_feed_providers.dart';
+import '../providers/interaction_providers.dart';
+import '../../../profile/presentation/providers/history_providers.dart';
 
 class VideoFeedScreen extends ConsumerStatefulWidget {
   const VideoFeedScreen({super.key});
@@ -63,7 +66,7 @@ class _VideoFeedScreenState extends ConsumerState<VideoFeedScreen> {
   }
 }
 
-class UniversalVideoPlayerItem extends StatefulWidget {
+class UniversalVideoPlayerItem extends ConsumerStatefulWidget {
   final Map<String, dynamic> movie;
   final bool isFocused;
   
@@ -74,10 +77,10 @@ class UniversalVideoPlayerItem extends StatefulWidget {
   });
 
   @override
-  State<UniversalVideoPlayerItem> createState() => _UniversalVideoPlayerItemState();
+  ConsumerState<UniversalVideoPlayerItem> createState() => _UniversalVideoPlayerItemState();
 }
 
-class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> with TickerProviderStateMixin {
+class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerItem> with TickerProviderStateMixin {
   VideoPlayerController? _nativeController;
   YoutubePlayerController? _webController;
   
@@ -110,6 +113,8 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
           showFullscreenButton: false,
           mute: false,
           loop: true,
+          showVideoAnnotations: false,
+          strictRelatedVideos: true,
         ),
       );
       if (mounted) {
@@ -150,12 +155,14 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
     if (kIsWeb) {
       if (widget.isFocused) {
         _webController?.playVideo();
+        ref.read(historyProvider.notifier).addToHistory(widget.movie);
       } else {
         _webController?.pauseVideo();
       }
     } else {
       if (widget.isFocused) {
         _nativeController?.play();
+        ref.read(historyProvider.notifier).addToHistory(widget.movie);
       } else {
         _nativeController?.pause();
       }
@@ -174,6 +181,7 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
   void _handleDoubleTap() async {
     final videoId = widget.movie['id'].toString();
     await SupabaseService.toggleLike(videoId);
+    ref.invalidate(likeStatusProvider(videoId));
     if (mounted) {
       setState(() => _showHeart = true);
     }
@@ -249,6 +257,7 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
       child: Stack(
         fit: StackFit.expand,
         children: [
+          // 1. Cinematic Backdrop
           if (posterPath != null)
             CachedNetworkImage(
               imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
@@ -259,10 +268,25 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
             child: Container(color: Colors.black.withValues(alpha: 0.5)),
           ),
           
+          // 2. Video Surface with Super-Scale & Crop for Web
           if (_initialized)
             Center(
               child: kIsWeb 
-                ? YoutubePlayer(controller: _webController!)
+                ? OverflowBox(
+                    maxWidth: double.infinity,
+                    maxHeight: double.infinity,
+                    child: Transform.scale(
+                      scale: 1.4, // Aggressive zoom to hide title and logo
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: MediaQuery.of(context).size.width,
+                          height: MediaQuery.of(context).size.width * (9 / 16),
+                          child: YoutubePlayer(controller: _webController!),
+                        ),
+                      ),
+                    ),
+                  )
                 : AspectRatio(
                     aspectRatio: _nativeController!.value.aspectRatio,
                     child: VideoPlayer(_nativeController!),
@@ -272,6 +296,35 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
             Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
           else
             const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
+
+          // 2b. Safety Black-out Layer for Web (Bottom-Right logo protection)
+          if (kIsWeb && _initialized)
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                width: 150,
+                height: 50,
+                color: Colors.black, // Hides "Watch on YouTube" if zoom fails
+              ),
+            ),
+
+          // Legibility Gradient
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.7),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.4],
+                ),
+              ),
+            ),
+          ),
 
           if (_showIcon)
             PointerInterceptor(
@@ -310,7 +363,9 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
               right: 20,
               child: IconButton(
                 icon: const Icon(Icons.search, color: Colors.white, size: 28),
-                onPressed: () {},
+                onPressed: () {
+                  ref.read(navigationIndexProvider.notifier).state = 1; // Go to Explorer tab
+                },
               ),
             ),
           ),
@@ -324,14 +379,14 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
     final overview = widget.movie['overview'] ?? '';
 
     return Positioned(
-      bottom: 140,
+      bottom: 120, // Moved up slightly for better visibility
       left: 20,
       right: 80,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildPlatformBadge(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           GestureDetector(
             onTap: () {
               showModalBottomSheet(
@@ -348,22 +403,22 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
                   title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 22,
+                    fontSize: 20, // Reduced from 22
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 1.1,
+                    letterSpacing: 1.0,
                     shadows: [Shadow(color: Colors.black, blurRadius: 10)],
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   overview,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6), // Reduced opacity
+                    fontSize: 12, // Reduced from 13
                     fontWeight: FontWeight.w400,
-                    shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                    shadows: const [Shadow(color: Colors.black, blurRadius: 10)],
                   ),
                 ),
               ],
@@ -385,15 +440,15 @@ class _UniversalVideoPlayerItemState extends State<UniversalVideoPlayerItem> wit
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white24),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white10),
         ),
         child: Text(
           platform,
-          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ),
     );

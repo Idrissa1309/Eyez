@@ -240,7 +240,6 @@ class SettingsScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 10),
       child: Material(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(15),
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),

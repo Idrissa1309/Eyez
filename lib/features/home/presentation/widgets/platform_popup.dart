@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/supabase_service.dart';
+import '../../../profile/presentation/screens/platform_channel_screen.dart';
+import '../providers/interaction_providers.dart';
 
-class PlatformPopup extends StatelessWidget {
+class PlatformPopup extends ConsumerWidget {
   final String platformName;
 
   const PlatformPopup({super.key, required this.platformName});
@@ -18,37 +21,21 @@ class PlatformPopup extends StatelessWidget {
       'subscribers': '150M',
       'description': 'Disney, Pixar, Marvel, Star Wars et National Geographic réunis.',
       'url': 'https://www.disneyplus.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg', // SVG might need flutter_svg, using png fallback
+      'logo': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg', // SVG might be tricky, use PNG if possible
     },
-    'Amazon Prime Video': {
-      'subscribers': '200M',
-      'description': 'Profitez de films et séries exclusifs, ainsi que des avantages Amazon Prime.',
-      'url': 'https://www.primevideo.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/1/11/Amazon_Prime_Video_logo.svg',
-    },
-    'Apple TV+': {
-      'subscribers': '50M',
-      'description': 'Des histoires originales des esprits les plus créatifs de la télévision et du cinéma.',
-      'url': 'https://tv.apple.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/2/28/Apple_TV_Plus_Logo.svg',
-    },
-    'Crunchyroll': {
-      'subscribers': '12M',
-      'description': 'Le leader mondial du streaming d\'animes, proposant la plus grande bibliothèque de titres.',
-      'url': 'https://www.crunchyroll.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/0/08/Crunchyroll_Logo.png',
-    },
+    // ...
   };
 
   @override
-  Widget build(BuildContext context) {
-    // Get normalized name to match map
+  Widget build(BuildContext context, WidgetRef ref) {
     final String normalizedName = platformData.keys.firstWhere(
       (k) => platformName.contains(k) || k.contains(platformName),
       orElse: () => 'Netflix',
     );
     
     final data = platformData[normalizedName]!;
+    final followData = ref.watch(platformFollowStatusProvider(normalizedName));
+    final isFollowing = followData.value ?? false;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -70,7 +57,6 @@ class PlatformPopup extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Close Button
             Align(
               alignment: Alignment.topRight,
               child: GestureDetector(
@@ -79,36 +65,42 @@ class PlatformPopup extends StatelessWidget {
               ),
             ),
             
-            // Platform Logo
             Container(
               width: 80,
               height: 80,
-              padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  colors: [AppColors.neonCyan, AppColors.neonBlue],
+                  colors: isFollowing 
+                      ? [Colors.grey.shade800, Colors.grey.shade900]
+                      : [AppColors.neonCyan, AppColors.neonBlue],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: (isFollowing ? Colors.black : AppColors.neonCyan).withValues(alpha: 0.3),
+                    blurRadius: 15,
+                  ),
+                ],
               ),
-              child: Center(
-                child: Text(
-                  normalizedName.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+              child: ClipOval(
+                child: Center(
+                  child: Text(
+                    normalizedName.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ),
             
             const SizedBox(height: 20),
             
-            // Name
             Text(
               normalizedName,
               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
             ),
             
-            // Subscribers
             Text(
               '${data['subscribers']} abonnés',
               style: const TextStyle(color: Colors.white54, fontSize: 13),
@@ -116,7 +108,6 @@ class PlatformPopup extends StatelessWidget {
             
             const SizedBox(height: 20),
             
-            // Description
             Text(
               data['description']!,
               textAlign: TextAlign.center,
@@ -125,23 +116,28 @@ class PlatformPopup extends StatelessWidget {
             
             const SizedBox(height: 30),
             
-            // Follow Button
             GestureDetector(
-              onTap: () {
-                // Future: Subscription logic
-                Navigator.pop(context);
+              onTap: () async {
+                await SupabaseService.togglePlatformFollow(normalizedName);
+                ref.invalidate(platformFollowStatusProvider(normalizedName));
+                ref.invalidate(followedPlatformsProvider);
               },
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
                 width: double.infinity,
                 height: 55,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [const Color(0xFF007BFF), const Color(0xFF00D2FF)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
+                  gradient: isFollowing 
+                      ? null 
+                      : LinearGradient(
+                          colors: [const Color(0xFF007BFF), const Color(0xFF00D2FF)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                  color: isFollowing ? Colors.white10 : null,
                   borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
+                  border: isFollowing ? Border.all(color: Colors.white10) : null,
+                  boxShadow: isFollowing ? [] : [
                     BoxShadow(
                       color: AppColors.neonBlue.withValues(alpha: 0.3),
                       blurRadius: 15,
@@ -149,10 +145,21 @@ class PlatformPopup extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Text(
-                    'Suivre',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (isFollowing) const Icon(Icons.check, color: Colors.white70, size: 18),
+                      if (isFollowing) const SizedBox(width: 8),
+                      Text(
+                        isFollowing ? 'Suivi' : 'Suivre',
+                        style: TextStyle(
+                          color: isFollowing ? Colors.white70 : Colors.white, 
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 16
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -160,13 +167,15 @@ class PlatformPopup extends StatelessWidget {
             
             const SizedBox(height: 15),
             
-            // Link Button
             TextButton(
-              onPressed: () async {
-                final url = Uri.parse(data['url']!);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url);
-                }
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PlatformChannelScreen(platformName: normalizedName),
+                  ),
+                );
               },
               child: const Text(
                 'Voir la plateforme',

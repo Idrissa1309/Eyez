@@ -1,0 +1,4 @@
+- [x] **Optimisation du Lancement**
+    - [x] Paralléliser `getTrendingWithVideos` dans `TMDBService`
+    - [x] Créer `SplashScreen` pour un retour visuel immédiat
+    - [x] Refactorer `main.dart` pour une initialisation non-bloquante

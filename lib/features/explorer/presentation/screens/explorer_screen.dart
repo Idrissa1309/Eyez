@@ -6,8 +6,32 @@ import '../../../../core/services/tmdb_service.dart';
 import '../../../home/presentation/widgets/movie_details_sheet.dart';
 import '../providers/explorer_providers.dart';
 
-class ExplorerScreen extends ConsumerWidget {
+class ExplorerScreen extends ConsumerStatefulWidget {
   const ExplorerScreen({super.key});
+
+  @override
+  ConsumerState<ExplorerScreen> createState() => _ExplorerScreenState();
+}
+
+class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
+  final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-focus after the first frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
 
   void _showMovieDetails(BuildContext context, dynamic movie) {
     showModalBottomSheet(
@@ -19,37 +43,48 @@ class ExplorerScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final searchQuery = ref.watch(searchQueryProvider);
     final searchResults = ref.watch(searchResultsProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final filteredContent = ref.watch(filteredContentProvider);
 
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 60, 20, 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 30),
-            _buildSearchBar(ref),
-            const SizedBox(height: 20),
-            
-            if (searchQuery.isEmpty) ...[
-              _buildCategories(ref, selectedCategory),
-              const SizedBox(height: 30),
-              _buildHeroSection(context, ref, filteredContent),
-              const SizedBox(height: 30),
-              _buildSectionTitle('Contenu $selectedCategory'),
-              const SizedBox(height: 20),
-              _buildHorizontalList(context, filteredContent),
-            ] else ...[
-              _buildSectionTitle('Résultats pour "$searchQuery"'),
-              const SizedBox(height: 20),
-              _buildSearchResults(context, searchResults),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(11, 7, 11, 54),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 10),
+              _buildSearchBar(ref),
+              const SizedBox(height: 8),
+              
+              if (searchQuery.isEmpty) ...[
+                _buildCategories(ref, selectedCategory),
+                const SizedBox(height: 10),
+                
+                _buildSectionTitle('Genres'),
+                const SizedBox(height: 7),
+                _buildGenres(ref),
+                const SizedBox(height: 13),
+
+                _buildSectionTitle('Plateformes'),
+                const SizedBox(height: 7),
+                _buildPlatforms(context),
+                const SizedBox(height: 13),
+
+                _buildSectionTitle('Tendances'),
+                const SizedBox(height: 8),
+                _buildTrendingGrid(context, filteredContent),
+              ] else ...[
+                _buildSectionTitle('Résultats pour "$searchQuery"'),
+                const SizedBox(height: 8),
+                _buildSearchResults(context, searchResults),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -61,15 +96,15 @@ class ExplorerScreen extends ConsumerWidget {
         const Text(
           'EXPLORER',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 11,
             fontWeight: FontWeight.bold,
-            letterSpacing: 2,
+            letterSpacing: 0.3,
           ),
         ),
         const Spacer(),
         const Text(
           'Découvrir du contenu',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 7),
         ),
       ],
     );
@@ -77,6 +112,7 @@ class ExplorerScreen extends ConsumerWidget {
 
   Widget _buildSearchBar(WidgetRef ref) {
     return TextField(
+      focusNode: _searchFocusNode,
       onChanged: (value) => ref.read(searchQueryProvider.notifier).state = value,
       decoration: InputDecoration(
         hintText: 'Rechercher un film, une série...',
@@ -220,7 +256,7 @@ class ExplorerScreen extends ConsumerWidget {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
     );
   }
 
@@ -292,15 +328,168 @@ class ExplorerScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildGenres(WidgetRef ref) {
+    final genres = [
+      {'id': 28, 'name': 'Action'},
+      {'id': 12, 'name': 'Aventure'},
+      {'id': 16, 'name': 'Animation'},
+      {'id': 35, 'name': 'Comédie'},
+      {'id': 80, 'name': 'Crime'},
+      {'id': 18, 'name': 'Drame'},
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: genres.map((genre) => Container(
+          margin: const EdgeInsets.only(right: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Text(
+            genre['name'] as String,
+            style: const TextStyle(color: Colors.white70, fontSize: 8, fontWeight: FontWeight.w500),
+          ),
+        )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildPlatforms(BuildContext context) {
+    final platforms = [
+      {'name': 'Netflix', 'color': Colors.red},
+      {'name': 'Amazon Prime Video', 'color': Colors.blue},
+      {'name': 'Apple TV+', 'color': Colors.white},
+      {'name': 'Disney+', 'color': Colors.indigo},
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: platforms.map((p) => Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: p['color'] as Color,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    (p['name'] as String).substring(0, 1),
+                    style: const TextStyle(color: Colors.black, fontSize: 6, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                p['name'] as String,
+                style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTrendingGrid(BuildContext context, AsyncValue<List<dynamic>> trending) {
+    return trending.when(
+      data: (items) => GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 15,
+          childAspectRatio: 0.65,
+        ),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final movie = items[index];
+          final posterPath = movie['poster_path'];
+          final rating = movie['vote_average']?.toStringAsFixed(1) ?? 'N/A';
+          final title = movie['title'] ?? movie['name'] ?? '';
+
+          return GestureDetector(
+            onTap: () => _showMovieDetails(context, movie),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: AppColors.surface,
+                          image: posterPath != null ? DecorationImage(
+                            image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}$posterPath'),
+                            fit: BoxFit.cover,
+                          ) : null,
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star, color: Colors.amber, size: 7),
+                              const SizedBox(width: 2),
+                              Text(
+                                rating,
+                                style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
+      error: (e, s) => const SizedBox(),
+    );
+  }
+
   Widget _buildCategory(String title, {required VoidCallback onTap, bool isSelected = false}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        margin: const EdgeInsets.only(right: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.neonFuchsia.withValues(alpha: 0.2) : AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(7),
           border: Border.all(
             color: isSelected ? AppColors.neonFuchsia : AppColors.outline,
           ),
@@ -310,6 +499,7 @@ class ExplorerScreen extends ConsumerWidget {
           style: TextStyle(
             color: isSelected ? Colors.white : AppColors.textSecondary,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 8,
           ),
         ),
       ),

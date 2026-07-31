@@ -17,6 +17,49 @@ class TMDBService {
 
   static const String imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
+  static const Map<String, String> languageMap = {
+    'fr': 'Français',
+    'en': 'Anglais',
+    'es': 'Espagnol',
+    'de': 'Allemand',
+    'it': 'Italien',
+    'ja': 'Japonais',
+    'ko': 'Coréen',
+    'zh': 'Chinois',
+    'pt': 'Portugais',
+    'ru': 'Russe',
+  };
+
+  static String getLanguageName(String? code) {
+    if (code == null) return 'Inconnue';
+    final lowerCode = code.toLowerCase();
+    return languageMap[lowerCode] ?? code.toUpperCase();
+  }
+
+  Future<List<Map<String, dynamic>>> getGenres() async {
+    try {
+      final movieGenres = await _dio.get('/genre/movie/list');
+      final tvGenres = await _dio.get('/genre/tv/list');
+      
+      final List<dynamic> allGenres = [
+        ...movieGenres.data['genres'],
+        ...tvGenres.data['genres'],
+      ];
+      
+      // Remove duplicates by ID
+      final seenIds = <int>{};
+      final uniqueGenres = <Map<String, dynamic>>[];
+      for (var g in allGenres) {
+        if (seenIds.add(g['id'])) {
+          uniqueGenres.add(Map<String, dynamic>.from(g));
+        }
+      }
+      return uniqueGenres;
+    } catch (e) {
+      return [];
+    }
+  }
+
   Future<List<dynamic>> getTrending() async {
     try {
       final response = await _dio.get('/trending/all/day');
@@ -111,46 +154,58 @@ class TMDBService {
   Future<List<Map<String, dynamic>>> getTrendingWithVideos() async {
     try {
       final trending = await getTrending();
-      final List<Map<String, dynamic>> resultsWithVideos = [];
-
-      // Fetch videos for the top 15 trending items to avoid too many requests
-      for (var item in trending.take(15)) {
+      
+      // Fetch details for the top 15 trending items in parallel
+      final List<Future<Map<String, dynamic>?>> detailFutures = trending.take(15).map((item) async {
         final id = item['id'];
         final type = item['media_type'] ?? 'movie';
-        
+        final isAnime = (item['genre_ids'] as List?)?.contains(16) ?? false;
+
         try {
           final details = await getDetails(id, type);
           final videos = details['videos']?['results'] as List<dynamic>?;
           
           if (videos != null && videos.isNotEmpty) {
-            // Find the best video (Trailer on YouTube)
             final trailer = videos.firstWhere(
               (v) => v['site'] == 'YouTube' && (v['type'] == 'Trailer' || v['type'] == 'Teaser'),
               orElse: () => videos.firstWhere((v) => v['site'] == 'YouTube', orElse: () => null),
             );
 
             if (trailer != null) {
-              // Extract the first available streaming provider (FR region)
-              final providers = details['watch/providers']?['results']?['FR']?['flatrate'] as List<dynamic>?;
-              String? platformName;
-              if (providers != null && providers.isNotEmpty) {
-                platformName = providers.first['provider_name'];
+              final List<String> platformNames = [];
+              if (isAnime) platformNames.add('Crunchyroll');
+              
+              final regions = ['FR', 'US', 'JP'];
+              for (var region in regions) {
+                final providers = details['watch/providers']?['results']?[region]?['flatrate'] as List<dynamic>?;
+                if (providers != null) {
+                  for (var p in providers) {
+                    final name = p['provider_name'] as String;
+                    if (!platformNames.contains(name)) platformNames.add(name);
+                  }
+                }
               }
 
-              resultsWithVideos.add({
-                ...item,
+              if (platformNames.isEmpty) platformNames.add('Netflix');
+
+              return <String, dynamic>{
+                ...Map<String, dynamic>.from(item),
                 'video_key': trailer['key'],
-                'platform': platformName ?? 'Netflix', // Default for demo if not found
+                'platforms': platformNames,
+                'platform': platformNames.first,
                 'accent_color': _getAccentColorForGenre(item['genre_ids']?.first),
-              });
+              };
             }
           }
+          return null;
         } catch (e) {
-          debugPrint('Error fetching videos for $id: $e');
-          continue;
+          debugPrint('Error fetching details for $id: $e');
+          return null;
         }
-      }
-      return resultsWithVideos;
+      }).toList();
+
+      final List<Map<String, dynamic>?> results = await Future.wait(detailFutures);
+      return results.whereType<Map<String, dynamic>>().toList();
     } catch (e) {
       throw Exception('Failed to fetch trending with videos: $e');
     }

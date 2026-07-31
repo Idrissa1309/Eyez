@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/ambient_provider.dart';
+import '../../core/providers/navigation_provider.dart';
 import '../../features/home/presentation/screens/video_feed_screen.dart';
 import '../../features/explorer/presentation/screens/explorer_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -16,8 +17,6 @@ class MainNavigation extends ConsumerStatefulWidget {
 }
 
 class _MainNavigationState extends ConsumerState<MainNavigation> {
-  int _selectedIndex = 0; // Default to Accueil (Home)
-
   final List<Widget> _screens = [
     const VideoFeedScreen(),
     const ExplorerScreen(),
@@ -27,11 +26,12 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     final ambientColor = ref.watch(ambientColorProvider);
+    final selectedIndex = ref.watch(navigationIndexProvider);
 
     return AppBorderWrapper(
       child: Scaffold(
         extendBody: true,
-        body: _screens[_selectedIndex],
+        body: _screens[selectedIndex],
         bottomNavigationBar: AnimatedContainer(
           duration: const Duration(milliseconds: 500),
           height: 70, 
@@ -56,9 +56,9 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.home_outlined, ambientColor),
-                _buildCentralItem(ambientColor),
-                _buildNavItem(2, Icons.person_outline, ambientColor),
+                _buildNavItem(0, Icons.home_outlined, ambientColor, selectedIndex),
+                _buildCentralItem(ambientColor, selectedIndex),
+                _buildNavItem(2, Icons.person_outline, ambientColor, selectedIndex),
               ],
             ),
           ),
@@ -71,10 +71,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     int index,
     IconData icon,
     Color accentColor,
+    int selectedIndex,
   ) {
-    bool isSelected = _selectedIndex == index;
+    bool isSelected = selectedIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () => ref.read(navigationIndexProvider.notifier).state = index,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -100,9 +101,9 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     );
   }
 
-  Widget _buildCentralItem(Color accentColor) {
+  Widget _buildCentralItem(Color accentColor, int selectedIndex) {
     return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = 1),
+      onTap: () => ref.read(navigationIndexProvider.notifier).state = 1,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 500),
         padding: const EdgeInsets.all(4),

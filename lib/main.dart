@@ -6,16 +6,10 @@ import 'core/services/supabase_service.dart';
 import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'shared/widgets/main_navigation.dart';
 
-void main() async {
+import 'features/onboarding/presentation/screens/splash_screen.dart';
+
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint('Critical: Could not load .env file');
-  }
-  
-  await SupabaseService.init();
   
   runApp(
     const ProviderScope(
@@ -29,16 +23,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine the initial screen based on auth session
-    final initialScreen = SupabaseService.currentUser != null 
-      ? const MainNavigation() 
-      : const OnboardingScreen();
-
     return MaterialApp(
       title: 'Eyez',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: initialScreen,
+      home: const SplashScreen(),
     );
   }
 }

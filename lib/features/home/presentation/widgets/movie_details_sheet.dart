@@ -21,7 +21,8 @@ class MovieDetailsSheet extends ConsumerWidget {
     final year = movie?['release_date']?.split('-')[0] ?? movie?['first_air_date']?.split('-')[0] ?? '2024';
     final synopsis = movie?['overview'] ?? 'Aucun synopsis disponible.';
 
-    // Check if the movie is saved
+    // Watch the list state directly for instant reactivity
+    final myListAsync = ref.watch(myListProvider);
     final isSaved = tmdbId != null && ref.watch(myListProvider.notifier).isSaved(tmdbId);
 
     return Container(
@@ -102,8 +103,8 @@ class MovieDetailsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 30),
             _buildDetailRow(Icons.calendar_today, 'Année', year),
-            _buildDetailRow(Icons.language, 'Langue', movie?['original_language']?.toString().toUpperCase() ?? 'FR'),
-            _buildPlatformRow('Netflix'),
+            _buildDetailRow(Icons.language, 'Langue', TMDBService.getLanguageName(movie?['original_language'])),
+            _buildPlatformsRow(movie?['platforms'] ?? ['Netflix']),
             const SizedBox(height: 25),
             const Text(
               'Synopsis',
@@ -124,7 +125,7 @@ class MovieDetailsSheet extends ConsumerWidget {
                     onPressed: () {},
                   ),
                 ),
-                const SizedBox(width: 15),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Container(
                     height: 55,
@@ -138,11 +139,11 @@ class MovieDetailsSheet extends ConsumerWidget {
                         ref.read(myListProvider.notifier).toggleItem(movie);
                       },
                       icon: Icon(
-                        isSaved ? Icons.favorite : Icons.favorite_border, 
+                        isSaved ? Icons.bookmark : Icons.bookmark_border,
                         color: isSaved ? AppColors.neonFuchsia : Colors.white70
                       ),
                       label: Text(
-                        isSaved ? 'Retirer' : 'Ma Collection',
+                        isSaved ? 'Retirer' : 'Collection',
                         style: TextStyle(
                           color: isSaved ? AppColors.neonFuchsia : Colors.white, 
                           fontWeight: FontWeight.w600
@@ -175,16 +176,35 @@ class MovieDetailsSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildPlatformRow(String platform) {
+  Widget _buildPlatformsRow(List<dynamic> platforms) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.play_circle_outline, size: 20, color: Colors.redAccent),
           const SizedBox(width: 15),
-          const Text('Plateforme', style: TextStyle(color: Colors.white38, fontSize: 14)),
+          const Text('Plateformes', style: TextStyle(color: Colors.white38, fontSize: 14)),
           const Spacer(),
-          Text(platform, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+          Expanded(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: platforms.map((p) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Text(
+                  p.toString(),
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              )).toList(),
+            ),
+          ),
         ],
       ),
     );

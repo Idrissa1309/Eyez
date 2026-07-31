@@ -1,17 +1,18 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/services/supabase_service.dart';
-import '../../../../core/services/tmdb_service.dart';
-import '../../../auth/presentation/screens/login_screen.dart';
-import '../../../home/presentation/widgets/movie_details_sheet.dart';
-import '../providers/my_list_providers.dart';
-import '../providers/profile_providers.dart';
-import '../providers/profile_video_providers.dart';
+import 'package:eyez/core/theme/app_colors.dart';
+import 'package:eyez/core/services/supabase_service.dart';
+import 'package:eyez/core/services/tmdb_service.dart';
+import 'package:eyez/features/auth/presentation/screens/login_screen.dart';
+import 'package:eyez/features/home/presentation/widgets/movie_details_sheet.dart';
+import 'package:eyez/features/home/presentation/providers/interaction_providers.dart';
+import 'package:eyez/features/profile/presentation/providers/my_list_providers.dart';
+import 'package:eyez/features/profile/presentation/providers/profile_providers.dart';
+import 'package:eyez/features/profile/presentation/providers/history_providers.dart';
+import 'package:eyez/features/profile/presentation/screens/platform_channel_screen.dart';
 
 import 'settings_screen.dart';
-import 'profile_video_player_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -39,24 +40,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final likedMovies = ref.watch(likedMoviesProvider);
 
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 60, 20, 120),
-        child: Column(
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 30),
-            _buildProfileInfo(profileData),
-            const SizedBox(height: 30),
-            _buildStats(myList, likedMovies),
-            const SizedBox(height: 30),
-            _buildTabs(),
-            const SizedBox(height: 20),
-            _buildTabContent(myList, likedMovies),
-            const SizedBox(height: 40),
-            _buildSettingsButton(),
-            const SizedBox(height: 20),
-            _buildLogoutButton(),
-          ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(11, 7, 11, 54),
+          child: Column(
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 13),
+              _buildProfileInfo(profileData),
+              const SizedBox(height: 13),
+              _buildStats(myList, likedMovies),
+              const SizedBox(height: 13),
+              _buildTabs(),
+              const SizedBox(height: 8),
+              _buildTabContent(myList, likedMovies),
+              const SizedBox(height: 10),
+              _buildLogoutButton(),
+            ],
+          ),
         ),
       ),
     );
@@ -66,13 +67,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        const SizedBox(width: 32), // Balance for settings icon
         const Spacer(),
         const Text(
           'PROFIL',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 11,
             fontWeight: FontWeight.bold,
-            letterSpacing: 2,
+            letterSpacing: 0.3,
           ),
         ),
         const Spacer(),
@@ -83,7 +85,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               MaterialPageRoute(builder: (context) => const SettingsScreen()),
             );
           },
-          icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 28),
+          icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 15),
         ),
       ],
     );
@@ -94,36 +96,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       data: (data) => Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(5),
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.neonFuchsia, width: 2),
+              border: Border.all(color: AppColors.neonFuchsia, width: 1.5),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.neonFuchsia.withValues(alpha: 0.3),
-                  blurRadius: 15,
+                  blurRadius: 5,
                 ),
               ],
             ),
             child: const CircleAvatar(
-              radius: 50,
+              radius: 27,
               backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=1000&auto=format&fit=crop'),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
           Text(
             SupabaseService.currentUser?.userMetadata?['username'] ?? 'Alexis',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
           Text(
             '@${SupabaseService.currentUser?.userMetadata?['username'] ?? 'alexis_cine'}',
-            style: const TextStyle(color: AppColors.neonCyan, fontSize: 14),
+            style: const TextStyle(color: AppColors.neonCyan, fontSize: 8),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
           Text(
             data?['bio'] ?? 'Passionné de films et séries\nÀ la recherche de la prochaine pépite 🎬',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 7),
           ),
         ],
       ),
@@ -133,12 +135,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildStats(AsyncValue<List<Map<String, dynamic>>> myList, AsyncValue<List<Map<String, dynamic>>> likedMovies) {
+    final followedPlatforms = ref.watch(followedPlatformsProvider);
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildStat('128', 'Abonnements'),
-        _buildStat('842', 'Abonnés'),
         _buildStat(likedMovies.value?.length.toString() ?? '0', 'J\'aime'),
+        _buildStat(followedPlatforms.value?.length.toString() ?? '0', 'Abonnements'),
         _buildStat(myList.value?.length.toString() ?? '0', 'Collections'),
       ],
     );
@@ -147,8 +150,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildStat(String value, String label) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Text(value, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white)),
+        Text(label, style: const TextStyle(fontSize: 7, color: AppColors.textSecondary)),
       ],
     );
   }
@@ -174,20 +177,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Icon(
             icon, 
             color: isSelected ? AppColors.neonFuchsia : AppColors.textSecondary, 
-            size: 24
+            size: 16
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             label,
             style: TextStyle(
               color: isSelected ? AppColors.neonFuchsia : AppColors.textSecondary,
-              fontSize: 10,
+              fontSize: 7,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           if (isSelected)
-            Container(height: 2, width: 20, color: AppColors.neonFuchsia),
+            Container(height: 1.5, width: 13, color: AppColors.neonFuchsia),
         ],
       ),
     );
@@ -195,11 +198,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildTabContent(AsyncValue<List<Map<String, dynamic>>> myList, AsyncValue<List<Map<String, dynamic>>> likedMovies) {
     if (_activeTab == 0) {
-      // Abonnements Tab
-      final profileVideos = ref.watch(profileVideosProvider);
-      return profileVideos.when(
-        data: (videos) {
-          if (videos.isEmpty) {
+      // Abonnements Tab (Followed Channels)
+      final followedPlatforms = ref.watch(followedPlatformsProvider);
+      return followedPlatforms.when(
+        data: (platforms) {
+          if (followedPlatforms.value == null || platforms.isEmpty) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
               child: Text('Aucun abonnement disponible', style: TextStyle(color: AppColors.textSecondary)),
@@ -211,46 +214,57 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.7,
+              mainAxisSpacing: 20,
+              childAspectRatio: 0.8,
             ),
-            itemCount: videos.length,
+            itemCount: platforms.length,
             itemBuilder: (context, index) {
-              final video = videos[index];
+              final platform = platforms[index];
               return GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => ProfileVideoPlayerScreen(movie: video)),
+                    MaterialPageRoute(builder: (context) => PlatformChannelScreen(platformName: platform)),
                   );
                 },
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: AppColors.surface,
-                    image: video['poster_path'] != null ? DecorationImage(
-                      image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}${video['poster_path']}'),
-                      fit: BoxFit.cover,
-                    ) : null,
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        bottom: 5,
-                        left: 5,
-                        child: Row(
-                          children: [
-                            const Icon(Icons.play_arrow_outlined, color: Colors.white, size: 12),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${(index + 1) * 2},${index}K',
-                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          ],
+                child: Column(
+                  children: [
+                    Container(
+                      width: 47,
+                      height: 47,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [AppColors.neonCyan, AppColors.neonBlue],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.neonCyan.withValues(alpha: 0.2),
+                            blurRadius: 7,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          platform.substring(0, 1).toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      platform,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.w500),
+                    ),
+                    const Text(
+                      'Chaine',
+                      style: TextStyle(color: Colors.white38, fontSize: 6),
+                    ),
+                  ],
                 ),
               );
             },
@@ -265,11 +279,62 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } else if (_activeTab == 2) {
       // Favoris Tab
       return _buildGrid(likedMovies, 'Aucun favori pour le moment');
+    } else if (_activeTab == 3) {
+      // Historique Tab
+      final history = ref.watch(historyProvider);
+      return _buildHistoryGrid(history, 'Aucun historique récent');
     }
 
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 40),
       child: Text('Aucun historique récent', style: TextStyle(color: AppColors.textSecondary)),
+    );
+  }
+
+  Widget _buildHistoryGrid(AsyncValue<List<Map<String, dynamic>>> itemsAsync, String emptyMsg) {
+    return itemsAsync.when(
+      data: (items) {
+        if (items.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Text(emptyMsg, style: const TextStyle(color: AppColors.textSecondary)),
+          );
+        }
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 0.7,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final movie = {
+              'id': item['tmdb_id'],
+              'title': item['title'],
+              'poster_path': item['poster_path'],
+            };
+            return GestureDetector(
+              onTap: () => _showMovieDetails(context, movie),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: AppColors.surface,
+                  image: item['poster_path'] != null ? DecorationImage(
+                    image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}${item['poster_path']}'),
+                    fit: BoxFit.cover,
+                  ) : null,
+                ),
+              ),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
+      error: (err, stack) => Center(child: Text('Erreur: $err', style: const TextStyle(color: Colors.red))),
     );
   }
 
@@ -317,34 +382,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       },
       loading: () => const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
       error: (err, stack) => Center(child: Text('Erreur: $err', style: const TextStyle(color: Colors.red))),
-    );
-  }
-
-  Widget _buildSettingsButton() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const SettingsScreen()),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.settings_outlined, color: AppColors.textSecondary),
-            SizedBox(width: 15),
-            Text('Paramètres', style: TextStyle(color: Colors.white)),
-            Spacer(),
-            Icon(Icons.arrow_forward_ios, color: AppColors.textSecondary, size: 16),
-          ],
-        ),
-      ),
     );
   }
 
