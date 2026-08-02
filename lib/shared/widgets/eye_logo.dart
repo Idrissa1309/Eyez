@@ -70,7 +70,7 @@ class _EyePainter extends CustomPainter {
     // 2. Draw the white part (sclera) - clipped
     canvas.save();
     canvas.clipPath(eyePath);
-    
+
     final scleraPaint = Paint()..color = Colors.white.withValues(alpha: 0.05);
     canvas.drawPath(eyePath, scleraPaint);
 

@@ -1,35 +1,41 @@
-# Plan d'implémentation - Logo Haute Fidélité (Neon Cyberpunk)
+# Plan d'implémentation - Mise à jour de l'icône de l'application
 
-Ce plan vise à recréer l'image du logo fournie en utilisant du code Flutter (`CustomPainter`) pour obtenir un rendu "parfait", indépendant de la résolution (vectoriel), et optimisé pour les performances.
+Ce plan détaille la procédure pour remplacer l'icône par défaut de Flutter par le nouveau logo "Eyez" haute résolution que nous avons généré.
 
 ## Modifications proposées
 
-### 1. Refonte du `EyeLogo` (Design Haute Fidélité)
-- **Structure Multi-Couches** : Dessiner plusieurs chemins concentriques pour simuler les "tubes néon" de la paupière.
-- **Effets de Lueur (Glow)** : Utiliser des `MaskFilter.blur` successifs pour créer l'effet de halo magenta/violet intense.
-- **Iris Électrique** : Recréer l'iris avec un dégradé radial cyan ultra-brillant et une texture de "fibre optique".
-- **Pupille Glossy** : Ajouter des reflets spéculaires nets et des ombres portées pour un aspect 3D/verre.
+### 1. Préparation de l'Asset
+- **Action** : Copier le logo généré (`app_logo.png`) vers le dossier `assets/images/app_icon.png`.
+- **Raison** : Pour que l'outil de génération puisse y accéder de manière permanente.
 
-### 2. Environnement Immersif
-- **Particules/Étoiles** : Ajouter un générateur de particules aléatoires en arrière-plan pour simuler le "cosmos" visible dans l'image.
-- **Reflet au Sol** : Intégrer un dégradé linéaire en bas du widget pour simuler la lumière se reflétant sur une surface.
+### 2. Configuration de l'automatisation
+- **Outil** : Utiliser le package `flutter_launcher_icons`.
+- **Ajout Dépendance** : Ajouter `flutter_launcher_icons: ^0.13.1` dans les `dev_dependencies` du fichier `pubspec.yaml`.
+- **Paramétrage** : Ajouter le bloc de configuration dans `pubspec.yaml` pour cibler Android et iOS.
 
-### 3. Optimisation des Performances
-- **Peinture Statique** : S'assurer que le `shouldRepaint` retourne `false` pour éviter des calculs inutiles si la taille ne change pas.
-- **Calculs Pré-calculés** : Mettre en cache les chemins (`Path`) complexes.
+### 3. Génération des icônes
+- **Commande** : Exécuter `flutter pub get` suivi de `flutter pub run flutter_launcher_icons`.
+- **Résultat** : Cela va générer automatiquement toutes les tailles d'icônes nécessaires pour Android (mipmaps) et iOS (AppIcon).
 
 ## Détails Techniques
 
-### [MODIFY] [eye_logo.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/eye_logo.dart)
-- Remplacement du dessin actuel par une implémentation multi-couches (Outer Glow, Neon Tubes, Iris Glow, Pupil, Specular).
-- Ajout d'une boucle pour dessiner les "étoiles" en arrière-plan.
+### [MODIFY] [pubspec.yaml](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/pubspec.yaml)
+- Ajout de la dépendance de développement.
+- Ajout de la configuration :
+  ```yaml
+  flutter_launcher_icons:
+    android: true
+    ios: true
+    image_path: "assets/images/app_icon.png"
+    adaptive_icon_background: "#05050D" # AppColors.background
+    adaptive_icon_foreground: "assets/images/app_icon.png"
+  ```
 
 ## Plan de vérification
 
-### Tests Visuels
-- [ ] Comparer le rendu du SplashScreen avec l'image originale.
-- [ ] Vérifier que le logo reste net lors des changements d'échelle (size variable).
-- [ ] Confirmer que l'effet de néon ne cause pas de ralentissements (jank) lors des transitions.
+### Tests Manuels
+- [ ] Vérifier que l'icône de l'application sur le bureau du téléphone Oppo a bien changé.
+- [ ] Vérifier l'apparence de l'icône dans le sélecteur d'applications (multitâche).
 
-> [!NOTE]
-> En utilisant du code pour dessiner le logo, nous garantissons une qualité "Rétina/4K" sans alourdir le poids de l'APK (0 octets d'images ajoutés).
+> [!IMPORTANT]
+> Après l'exécution, il est conseillé de désinstaller et réinstaller l'application sur le téléphone pour s'assurer que le cache des icônes d'Android soit bien mis à jour.
