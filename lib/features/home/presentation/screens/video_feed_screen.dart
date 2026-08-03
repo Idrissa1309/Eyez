@@ -8,6 +8,8 @@ import 'package:video_player/video_player.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/providers/ambient_provider.dart';
 import '../../../../core/providers/navigation_provider.dart';
@@ -94,6 +96,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
   late AnimationController _heartController;
   late Animation<double> _heartAnimation;
   bool _showHeart = false;
+  bool _isUnlike = false;
   
   @override
   void initState() {
@@ -125,11 +128,11 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
         setState(() => _initialized = true);
       }
       
-      // Listen for video start to hide the red button/thumbnail
       _webController!.stream.listen((state) {
         if (state.playerState == PlayerState.playing && !_webVideoStarted) {
           if (mounted) {
             setState(() => _webVideoStarted = true);
+            WakelockPlus.enable(); // Keep screen on for Web if supported
           }
         }
       });
@@ -145,6 +148,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
                 _initialized = true;
                 if (widget.isFocused) {
                   _nativeController!.play();
+                  WakelockPlus.enable(); // Keep screen on
                 }
                 _nativeController!.setLooping(true);
               });
@@ -165,19 +169,18 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     super.didUpdateWidget(oldWidget);
     if (!_initialized) return;
 
-    if (kIsWeb) {
-      if (widget.isFocused) {
+    if (widget.isFocused) {
+      WakelockPlus.enable();
+      if (kIsWeb) {
         _webController?.playVideo();
-        ref.read(historyProvider.notifier).addToHistory(widget.movie);
       } else {
-        _webController?.pauseVideo();
-        // Reset web video started state when losing focus to show poster again if needed
-        // No, maybe keep it.
-      }
-    } else {
-      if (widget.isFocused) {
         _nativeController?.play();
-        ref.read(historyProvider.notifier).addToHistory(widget.movie);
+      }
+      ref.read(historyProvider.notifier).addToHistory(widget.movie);
+    } else {
+      WakelockPlus.disable();
+      if (kIsWeb) {
+        _webController?.pauseVideo();
       } else {
         _nativeController?.pause();
       }
@@ -186,6 +189,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
 
   @override
   void dispose() {
+    WakelockPlus.disable();
     _iconTimer?.cancel();
     _heartController.dispose();
     _nativeController?.dispose();
@@ -195,11 +199,18 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
 
   void _handleDoubleTap() async {
     final videoId = widget.movie['id'].toString();
+    final wasLiked = ref.read(likeStatusProvider(videoId)).value ?? false;
+    
     await SupabaseService.toggleLike(videoId);
     ref.invalidate(likeStatusProvider(videoId));
+    
     if (mounted) {
-      setState(() => _showHeart = true);
+      setState(() {
+        _isUnlike = wasLiked;
+        _showHeart = true;
+      });
     }
+    
     _heartController.forward(from: 0).then((_) {
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
@@ -214,7 +225,11 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     return Center(
       child: ScaleTransition(
         scale: _heartAnimation,
-        child: const Icon(Icons.favorite, color: AppColors.neonFuchsia, size: 100),
+        child: Icon(
+          _isUnlike ? Icons.favorite_border : Icons.favorite, 
+          color: _isUnlike ? Colors.white54 : AppColors.neonFuchsia, 
+          size: 100,
+        ),
       ),
     );
   }
@@ -227,15 +242,19 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
       isPlaying = _webController?.value.playerState == PlayerState.playing;
       if (isPlaying) {
         _webController?.pauseVideo();
+        WakelockPlus.disable();
       } else {
         _webController?.playVideo();
+        WakelockPlus.enable();
       }
     } else {
       isPlaying = _nativeController!.value.isPlaying;
       if (isPlaying) {
         _nativeController?.pause();
+        WakelockPlus.disable();
       } else {
         _nativeController?.play();
+        WakelockPlus.enable();
       }
     }
 
@@ -315,7 +334,6 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
         if (kIsWeb)
           Positioned.fill(
             child: PointerInterceptor(
-              intercepting: true,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _togglePlay,
