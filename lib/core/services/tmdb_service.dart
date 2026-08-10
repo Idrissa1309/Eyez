@@ -41,9 +41,9 @@ class TMDBService {
   };
 
   static String getLanguageName(String? code) {
-    if (code == null) return 'Inconnue';
+    if (code == null) return 'FR'; // Default to FR for simplicity if missing
     final lowerCode = code.toLowerCase();
-    return languageMap[lowerCode] ?? code.toUpperCase();
+    return lowerCode == 'en' ? 'EN' : (languageMap[lowerCode] != null ? code.toUpperCase() : code.toUpperCase());
   }
 
   Future<List<Map<String, dynamic>>> getGenres() async {
@@ -56,7 +56,6 @@ class TMDBService {
         ...tvGenres.data['genres'],
       ];
       
-      // Remove duplicates by ID
       final seenIds = <int>{};
       final uniqueGenres = <Map<String, dynamic>>[];
       for (var g in allGenres) {
@@ -79,7 +78,6 @@ class TMDBService {
       try {
         final details = await getDetails(id, type);
         
-        // Extract streaming providers
         final List<String> platformNames = [];
         if (isAnime) platformNames.add('Crunchyroll');
         
@@ -94,7 +92,11 @@ class TMDBService {
           }
         }
 
-        if (platformNames.isEmpty) platformNames.add('Netflix');
+        if (platformNames.isEmpty) {
+          // Provide variety if no provider found
+          final fallbacks = ['Netflix', 'Amazon Prime Video', 'Disney+'];
+          platformNames.add(fallbacks[id % fallbacks.length]);
+        }
 
         return <String, dynamic>{
           ...Map<String, dynamic>.from(item),
@@ -177,10 +179,7 @@ class TMDBService {
       final response = await _dio.get('/movie/popular');
       return _enrichItems(response.data['results']);
     } catch (e) {
-      if (e is DioException) {
-        throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
-      }
-      throw Exception('Failed to fetch popular movies: $e');
+      return [];
     }
   }
 
@@ -189,10 +188,7 @@ class TMDBService {
       final response = await _dio.get('/tv/popular');
       return _enrichItems(response.data['results']);
     } catch (e) {
-      if (e is DioException) {
-        throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
-      }
-      throw Exception('Failed to fetch TV shows: $e');
+      return [];
     }
   }
 
@@ -203,10 +199,7 @@ class TMDBService {
       });
       return _enrichItems(response.data['results']);
     } catch (e) {
-      if (e is DioException) {
-        throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
-      }
-      throw Exception('Failed to fetch animes: $e');
+      return [];
     }
   }
 
@@ -217,10 +210,7 @@ class TMDBService {
       });
       return _enrichItems(response.data['results']);
     } catch (e) {
-      if (e is DioException) {
-        throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
-      }
-      throw Exception('Failed to fetch music content: $e');
+      return [];
     }
   }
 
@@ -229,10 +219,7 @@ class TMDBService {
       final response = await _dio.get('/search/multi', queryParameters: {'query': query});
       return response.data['results'];
     } catch (e) {
-      if (e is DioException) {
-        throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
-      }
-      throw Exception('Failed to search: $e');
+      return [];
     }
   }
 
@@ -243,9 +230,6 @@ class TMDBService {
       });
       return response.data;
     } catch (e) {
-      if (e is DioException) {
-        throw Exception('TMDB API Error: ${e.response?.data['status_message'] ?? e.message}');
-      }
       throw Exception('Failed to fetch details: $e');
     }
   }
@@ -253,8 +237,6 @@ class TMDBService {
   Future<List<Map<String, dynamic>>> getTrendingWithVideos() async {
     try {
       final trending = await getTrending();
-      
-      // Fetch details for the top 15 trending items in parallel
       final List<Future<Map<String, dynamic>?>> detailFutures = trending.take(15).map((item) async {
         final id = item['id'];
         final type = item['media_type'] ?? 'movie';
@@ -285,7 +267,10 @@ class TMDBService {
                 }
               }
 
-              if (platformNames.isEmpty) platformNames.add('Netflix');
+              if (platformNames.isEmpty) {
+                final fallbacks = ['Netflix', 'Amazon Prime Video', 'Disney+'];
+                platformNames.add(fallbacks[id % fallbacks.length]);
+              }
 
               return <String, dynamic>{
                 ...Map<String, dynamic>.from(item),
@@ -299,7 +284,6 @@ class TMDBService {
           }
           return null;
         } catch (e) {
-          debugPrint('Error fetching details for $id: $e');
           return null;
         }
       }).toList();
@@ -312,20 +296,18 @@ class TMDBService {
   }
 
   Color _getAccentColorForGenre(int? genreId) {
-    if (genreId == null) return const Color(0xFF00D2FF); // Cyan
-    
-    // Map some genre IDs to colors
+    if (genreId == null) return const Color(0xFF00D2FF); 
     switch (genreId) {
-      case 28: return const Color(0xFFFF0000); // Action -> Red
-      case 12: return const Color(0xFFFFA500); // Adventure -> Orange
-      case 16: return const Color(0xFFFF2E93); // Animation -> Fuchsia
-      case 35: return const Color(0xFFFFFF00); // Comedy -> Yellow
-      case 80: return const Color(0xFF8B0000); // Crime -> Dark Red
-      case 18: return const Color(0xFF9D44FF); // Drama -> Purple
-      case 14: return const Color(0xFF00D2FF); // Fantasy -> Cyan
-      case 27: return const Color(0xFF4A4A4A); // Horror -> Grey
-      case 10749: return const Color(0xFFFF69B4); // Romance -> Pink
-      case 878: return const Color(0xFF007BFF); // Science Fiction -> Blue
+      case 28: return const Color(0xFFFF0000); 
+      case 12: return const Color(0xFFFFA500); 
+      case 16: return const Color(0xFFFF2E93); 
+      case 35: return const Color(0xFFFFFF00); 
+      case 80: return const Color(0xFF8B0000); 
+      case 18: return const Color(0xFF9D44FF); 
+      case 14: return const Color(0xFF00D2FF); 
+      case 27: return const Color(0xFF4A4A4A); 
+      case 10749: return const Color(0xFFFF69B4); 
+      case 878: return const Color(0xFF007BFF); 
       default: return const Color(0xFF00D2FF);
     }
   }

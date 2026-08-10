@@ -102,8 +102,8 @@ class MovieDetailsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 30),
             _buildDetailRow(Icons.calendar_today, 'Année', year),
-            _buildDetailRow(Icons.language, 'Langue', TMDBService.getLanguageName(movie?['original_language'])),
-            _buildPlatformsRow(movie?['platforms'] ?? ['Netflix']),
+            _buildDetailRow(Icons.language, 'Langue', movie?['original_language_name'] ?? 'FR'),
+            _buildPlatformRow(movie?['platform'] ?? 'Netflix'),
             const SizedBox(height: 25),
             const Text(
               'Synopsis',
@@ -175,35 +175,16 @@ class MovieDetailsSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildPlatformsRow(List<dynamic> platforms) {
+  Widget _buildPlatformRow(String platform) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.play_circle_outline, size: 20, color: Colors.redAccent),
           const SizedBox(width: 15),
-          const Text('Plateformes', style: TextStyle(color: Colors.white38, fontSize: 14)),
+          const Text('Plateforme', style: TextStyle(color: Colors.white38, fontSize: 14)),
           const Spacer(),
-          Expanded(
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: platforms.map((p) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Text(
-                  p.toString(),
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-              )).toList(),
-            ),
-          ),
+          Text(platform, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
         ],
       ),
     );

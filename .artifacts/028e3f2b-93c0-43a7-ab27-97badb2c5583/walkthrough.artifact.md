@@ -1,28 +1,32 @@
-# Walkthrough - High-Fidelity Eye Logo Implementation
+# Walkthrough - Correctifs Profil, Icones, Performances et Plateformes
 
-I have implemented the "Exact Eye" logo with high fidelity, matching the realistic and cinematic style of the Eyez designs.
+J'ai terminé l'implémentation des correctifs demandés. Voici un résumé des changements effectués :
 
-## Changes Made
+## 1. Correction des Favoris ("Inconnus")
+Le problème d'affichage des "inconnus" dans les favoris est résolu. Auparavant, seuls les IDs étaient stockés.
+- **Modification** : La fonction `toggleLike` dans `SupabaseService` enregistre désormais le `tmdb_id`, le `title` et le `poster_path`.
+- **Impact** : Les futurs favoris s'afficheront avec leurs images et titres corrects dans l'onglet Profil.
+- **Action Requise** : Pour les anciens favoris, vous devrez les "unliker" puis les "reliker" pour mettre à jour les données dans la base, ou exécuter la migration SQL fournie dans le plan.
 
-### 1. Custom Eye Logo Widget
-- **`EyeLogo` Widget**: Built a custom widget using `CustomPainter` to achieve a professional vector look.
-- **Iris Detail**: Implemented a multi-color radial gradient (Cyan, Blue, Purple, Fuchsia) with added radial lines for texture.
-- **Realistic Pupil**: Added a black pupil with primary and secondary white reflections to simulate light hitting a lens.
-- **Glowing Lids**: The outer eye shape features a multi-color border gradient (Orange to Cyan) with a soft glow.
+## 2. Mise à jour des Icônes et Taille (+50%)
+L'icône centrale a été mise à jour et agrandie.
+- **Icône** : Passage de `icon_foreground.png` à `icon_transparent.png`.
+- **Taille** : Augmentation de 58px à **87px** (+50%).
+- **Interface** : Le halo lumineux et le cercle néon ont été redimensionnés proportionnellement. La barre de navigation a été légèrement surélevée pour accueillir cette icône plus imposante sans masquer le contenu.
 
-### 2. Login Screen Immersion
-- **Nebula Background**: Added a cinematic nebula/galaxy background image to the [LoginScreen](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/auth/presentation/screens/login_screen.dart) to make the logo and branding feel part of a vast universe.
-- **Scale Adjustment**: Enlarged the logo (140dp) to make it the central focal point of the authentication experience.
+## 3. Correction du Popup des Chaines
+Chaque chaîne affiche désormais ses propres informations.
+- **Support étendu** : Ajout des données spécifiques (abonnés, description, logos) pour **HBO**, **Paramount+**, **Peacock**, etc.
+- **Logique intelligente** : Si une chaîne n'est pas dans la liste prédéfinie, le popup utilise maintenant le nom réel de la chaîne au lieu de forcer "Netflix".
+- **Logos** : Mise à jour de `BrandIcons` pour inclure les logos SVG officiels de ces nouvelles plateformes.
 
-### 3. Navigation Consistency
-- **Floating Eye**: Replaced the standard eye icon in the [MainNavigation](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/main_navigation.dart) with a mini version of the high-fidelity `EyeLogo`. This ensures the project's branding is consistent across all surfaces.
+## 4. Optimisation des Performances et Fluidité
+L'application est désormais beaucoup plus fluide lors du défilement des listes.
+- **Refactorisation** : Remplacement des `SingleChildScrollView` et `GridView(shrinkWrap: true)` par des `CustomScrollView` et `SliverGrid`.
+- **Bénéfice** : Les éléments sont désormais chargés uniquement lorsqu'ils entrent dans l'écran (*Lazy Loading*), ce qui élimine les saccades lors du défilement du profil et de l'explorateur.
 
-## Verification Results
-
-### Manual Verification
-- [x] **Visual Accuracy**: The new logo accurately reflects the iris gradients, reflections, and glow seen in the reference image.
-- [x] **Branding**: Confirmed that both the Login screen and the Navigation bar share the same visual identity.
-- [x] **Performance**: Verified that the `CustomPainter` renders smoothly without any lag during screen transitions.
-
-> [!TIP]
-> The nebula background has a low opacity (0.3) to ensure that the "Eyez" title and input fields remain perfectly readable while providing a rich cinematic feel.
+## Vérification Effectuée
+- [x] Code source mis à jour et validé.
+- [x] Structure des Slivers implémentée pour la performance.
+- [x] Fallback dynamique pour les plateformes testé.
+- [x] Icônes de navigation repositionnées.

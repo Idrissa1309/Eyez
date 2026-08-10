@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
@@ -7,7 +8,6 @@ import '../../features/home/presentation/screens/video_feed_screen.dart';
 import '../../features/explorer/presentation/screens/explorer_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import 'app_border_wrapper.dart';
-import 'eye_logo.dart';
 
 class MainNavigation extends ConsumerStatefulWidget {
   const MainNavigation({super.key});
@@ -32,35 +32,37 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       child: Scaffold(
         extendBody: true,
         body: _screens[selectedIndex],
-        bottomNavigationBar: AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          height: 70, 
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.background.withValues(alpha: 0.8),
-            borderRadius: BorderRadius.circular(40),
-            border: Border.all(
-              color: ambientColor.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: ambientColor.withValues(alpha: 0.1),
-                blurRadius: 20,
-                spreadRadius: 1,
+        bottomNavigationBar: Container(
+          height: 120, // Increased for the much larger 50% button
+          color: Colors.transparent,
+          margin: const EdgeInsets.only(bottom: 10),
+          child: Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              // 1. Custom Background and Glowing Wave Border
+              CustomPaint(
+                size: Size(MediaQuery.of(context).size.width, 120),
+                painter: _NavBarPainter(
+                  color: AppColors.background.withValues(alpha: 0.95),
+                  glowColor: ambientColor,
+                ),
+              ),
+              
+              // 2. Interactive Icons Layer
+              Container(
+                height: 65, // Increased height for solid bar alignment
+                padding: const EdgeInsets.symmetric(horizontal: 45),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _buildNavItem(0, CupertinoIcons.house, CupertinoIcons.house_fill, ambientColor, selectedIndex),
+                    _buildCentralItem(ambientColor, selectedIndex),
+                    _buildNavItem(2, CupertinoIcons.person_crop_circle, CupertinoIcons.person_crop_circle_fill, ambientColor, selectedIndex),
+                  ],
+                ),
               ),
             ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(40),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.home_outlined, ambientColor, selectedIndex),
-                _buildCentralItem(ambientColor, selectedIndex),
-                _buildNavItem(2, Icons.person_outline, ambientColor, selectedIndex),
-              ],
-            ),
           ),
         ),
       ),
@@ -70,62 +72,153 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
   Widget _buildNavItem(
     int index,
     IconData icon,
+    IconData activeIcon,
     Color accentColor,
     int selectedIndex,
   ) {
     bool isSelected = selectedIndex == index;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => ref.read(navigationIndexProvider.notifier).state = index,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Icon(
-              icon,
-              key: ValueKey('${icon}_$isSelected'),
-              color: isSelected ? accentColor : AppColors.textSecondary,
-              size: 28,
-            ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        height: 52,
+        width: 52,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isSelected ? accentColor.withValues(alpha: 0.1) : Colors.transparent,
+        ),
+        child: Center(
+          child: Icon(
+            isSelected ? activeIcon : icon,
+            color: isSelected ? accentColor : Colors.white.withValues(alpha: 0.3),
+            size: 26, 
           ),
-          if (isSelected) ...[
-            const SizedBox(height: 4),
-            Container(
-              width: 4,
-              height: 4,
-              decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildCentralItem(Color accentColor, int selectedIndex) {
+    bool isSelected = selectedIndex == 1;
     return GestureDetector(
       onTap: () => ref.read(navigationIndexProvider.notifier).state = 1,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 500),
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: accentColor, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: accentColor.withValues(alpha: 0.4),
-              blurRadius: 15,
-              spreadRadius: 2,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 45), // Adjusted for the 50% size increase
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Floating Glow Halo
+            Container(
+              width: 129, // ~86 * 1.5
+              height: 129,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: isSelected ? 0.5 : 0.2),
+                    blurRadius: 40,
+                    spreadRadius: 3,
+                  ),
+                ],
+                gradient: RadialGradient(
+                  colors: [
+                    accentColor.withValues(alpha: 0.15),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.5, 1.0],
+                ),
+              ),
+            ),
+            // Minimalist Neon Ring
+            Container(
+              width: 120, // ~80 * 1.5
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: accentColor.withValues(alpha: 0.2), 
+                  width: 1.5,
+                ),
+              ),
+              child: Center(
+                child: Image.asset(
+                  'assets/icons/icon_transparent.png',
+                  width: 87, // ~58 * 1.5
+                  height: 87,
+                  fit: BoxFit.contain,
+                ),
+              ),
             ),
           ],
-          gradient: RadialGradient(
-            colors: [accentColor, Colors.transparent],
-            stops: const [0.2, 1.0],
-          ),
-        ),
-        child: const Center(
-          child: EyeLogo(size: 32, showGlow: false),
         ),
       ),
     );
+  }
+}
+
+class _NavBarPainter extends CustomPainter {
+  final Color color;
+  final Color glowColor;
+
+  _NavBarPainter({required this.color, required this.glowColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    final w = size.width;
+    final h = size.height;
+    const barH = 75.0; // Increased for larger button
+    final topY = h - barH;
+    const margin = 20.0;
+
+    path.moveTo(margin, h);
+    path.lineTo(margin, topY + 20);
+    path.quadraticBezierTo(margin, topY, margin + 20, topY);
+
+    path.lineTo(w / 2 - 110, topY); // Wider opening for 50% larger button
+
+    // THE WAVE (Adapted for much larger button)
+    path.cubicTo(
+      w / 2 - 80, topY, 
+      w / 2 - 70, topY - 45, 
+      w / 2, topY - 45
+    );
+    path.cubicTo(
+      w / 2 + 70, topY - 45, 
+      w / 2 + 80, topY, 
+      w / 2 + 110, topY
+    );
+
+    path.lineTo(w - margin - 20, topY);
+    path.quadraticBezierTo(w - margin, topY, w - margin, topY + 20);
+
+    path.lineTo(w - margin, h);
+    path.close();
+
+    final glowPaint = Paint()
+      ..color = glowColor.withValues(alpha: 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    
+    canvas.drawPath(path, glowPaint);
+    canvas.drawPath(path, paint);
+
+    final borderPaint = Paint()
+      ..color = glowColor.withValues(alpha: 0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _NavBarPainter oldDelegate) {
+    return oldDelegate.glowColor != glowColor;
   }
 }

@@ -57,6 +57,10 @@ class PlatformIcon extends StatelessWidget {
     'prime video': 'https://www.pngall.com/wp-content/uploads/15/Amazon-Prime-Video-Logo-PNG-Cutout.png',
     'apple tv+': 'https://upload.wikimedia.org/wikipedia/commons/a/ad/AppleTVLogo.svg',
     'crunchyroll': 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Crunchyroll_logo_.webp',
+    'hbo': 'https://upload.wikimedia.org/wikipedia/commons/d/de/HBO_logo.svg',
+    'paramount plus': 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Paramount_Plus.svg',
+    'peacock premium': 'https://upload.wikimedia.org/wikipedia/commons/d/d3/Peacock_Logo.svg',
+    'peacock': 'https://upload.wikimedia.org/wikipedia/commons/d/d3/Peacock_Logo.svg',
   };
 
   @override

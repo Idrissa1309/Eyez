@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/tmdb_service.dart';
-import '../../../../shared/widgets/brand_icons.dart';
 import '../../../home/presentation/widgets/movie_details_sheet.dart';
-import '../../../profile/presentation/screens/platform_channel_screen.dart';
+import '../../../../shared/widgets/brand_icons.dart';
 import '../providers/explorer_providers.dart';
 
 class ExplorerScreen extends ConsumerStatefulWidget {
@@ -21,7 +20,6 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto-focus after the first frame is rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _searchFocusNode.requestFocus();
@@ -49,64 +47,97 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     final searchQuery = ref.watch(searchQueryProvider);
     final searchResults = ref.watch(searchResultsProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
+    final selectedGenre = ref.watch(selectedGenreProvider);
+    final selectedPlatform = ref.watch(selectedPlatformProvider);
     final filteredContent = ref.watch(filteredContentProvider);
 
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(11, 7, 11, 54),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 10),
-              _buildSearchBar(ref),
-              const SizedBox(height: 8),
-              
-              if (searchQuery.isEmpty) ...[
-                _buildCategories(ref, selectedCategory),
-                const SizedBox(height: 10),
-                
-                const _SectionTitle(title: 'Genres'),
-                const SizedBox(height: 7),
-                _buildGenres(ref),
-                const SizedBox(height: 13),
-
-                const _SectionTitle(title: 'Plateformes'),
-                const SizedBox(height: 7),
-                _buildPlatforms(context),
-                const SizedBox(height: 13),
-
-                const _SectionTitle(title: 'Tendances'),
-                const SizedBox(height: 8),
-                _buildTrendingGrid(context, filteredContent),
-              ] else ...[
-                _SectionTitle(title: 'Résultats pour "$searchQuery"'),
-                const SizedBox(height: 8),
-                _buildSearchResults(context, searchResults),
-              ],
-            ],
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 30),
+                  _buildSearchBar(ref),
+                  const SizedBox(height: 30),
+                ],
+              ),
+            ),
           ),
-        ),
+
+          if (searchQuery.isEmpty) ...[
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Genres'),
+                    const SizedBox(height: 15),
+                    _buildGenres(ref, selectedGenre),
+                    const SizedBox(height: 30),
+                    
+                    _buildSectionTitle('Plateformes'),
+                    const SizedBox(height: 15),
+                    _buildPlatforms(ref, selectedPlatform),
+                    const SizedBox(height: 30),
+
+                    _buildSectionTitle('Catégories'),
+                    const SizedBox(height: 15),
+                    _buildCategories(ref, selectedCategory),
+                    const SizedBox(height: 30),
+                    
+                    _buildHeroSection(context, ref, filteredContent),
+                    const SizedBox(height: 30),
+                    _buildSectionTitle('Tendances'),
+                    const SizedBox(height: 20),
+                    _buildHorizontalList(context, filteredContent),
+                    const SizedBox(height: 120),
+                  ],
+                ),
+              ),
+            ),
+          ] else ...[
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Résultats pour "$searchQuery"'),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+            _buildSliverSearchResults(context, searchResults),
+            const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildHeader() {
-    return const Row(
+    return Row(
       children: [
-        Text(
+        const Text(
           'EXPLORER',
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
-            letterSpacing: 0.3,
+            letterSpacing: 2,
           ),
         ),
-        Spacer(),
-        Text(
+        const Spacer(),
+        const Text(
           'Découvrir du contenu',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 7),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
         ),
       ],
     );
@@ -116,68 +147,17 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     return TextField(
       focusNode: _searchFocusNode,
       onChanged: (value) => ref.read(searchQueryProvider.notifier).state = value,
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         hintText: 'Rechercher un film, une série...',
-        prefixIcon: Icon(Icons.search),
-        suffixIcon: Icon(Icons.tune),
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: const Icon(Icons.tune),
         fillColor: AppColors.surface,
       ),
     );
   }
 
-  Widget _buildCategories(WidgetRef ref, String selectedCategory) {
-    const categories = ['Pour toi', 'Films', 'Séries', 'Animes', 'Musique'];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: categories.map((cat) => _buildCategory(
-          cat, 
-          isSelected: selectedCategory == cat,
-          onTap: () => ref.read(selectedCategoryProvider.notifier).state = cat,
-        )).toList(),
-      ),
-    );
-  }
-
-  Widget _buildSearchResults(BuildContext context, AsyncValue<List<dynamic>> results) {
-    return results.when(
-      data: (list) => GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 15,
-          mainAxisSpacing: 15,
-          childAspectRatio: 0.7,
-        ),
-        itemCount: list.length,
-        itemBuilder: (context, index) {
-          final item = list[index];
-          final posterPath = item['poster_path'];
-          return GestureDetector(
-            onTap: () => _showMovieDetails(context, item),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                color: AppColors.surface,
-                image: posterPath != null ? DecorationImage(
-                  image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}$posterPath'),
-                  fit: BoxFit.cover,
-                ) : null,
-              ),
-            ),
-          );
-        },
-      ),
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
-      error: (err, stack) => const Center(child: Icon(Icons.error_outline, color: Colors.red)),
-    );
-  }
-
-  Widget _buildGenres(WidgetRef ref) {
-    final selectedGenreId = ref.watch(selectedGenreProvider);
-
-    const genres = [
+  Widget _buildGenres(WidgetRef ref, int? selectedId) {
+    final genres = [
       {'id': 28, 'name': 'Action'},
       {'id': 12, 'name': 'Aventure'},
       {'id': 16, 'name': 'Animation'},
@@ -185,35 +165,30 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
       {'id': 80, 'name': 'Crime'},
       {'id': 18, 'name': 'Drame'},
     ];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: genres.map((genre) {
-          final id = genre['id'] as int;
-          final isSelected = selectedGenreId == id;
-          
+        children: genres.map((g) {
+          final isSelected = selectedId == g['id'];
           return GestureDetector(
             onTap: () {
-              if (isSelected) {
-                ref.read(selectedGenreProvider.notifier).state = null;
-              } else {
-                ref.read(selectedGenreProvider.notifier).state = id;
-              }
+              ref.read(selectedGenreProvider.notifier).state = isSelected ? null : g['id'] as int;
+              ref.read(selectedPlatformProvider.notifier).state = null;
             },
             child: Container(
-              margin: const EdgeInsets.only(right: 7),
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.neonCyan.withValues(alpha: 0.1) : AppColors.surface,
-                borderRadius: BorderRadius.circular(7),
+                color: isSelected ? AppColors.neonCyan.withValues(alpha: 0.2) : AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: isSelected ? AppColors.neonCyan : Colors.white10),
               ),
               child: Text(
-                genre['name'] as String,
+                g['name'] as String,
                 style: TextStyle(
-                  color: isSelected ? AppColors.neonCyan : Colors.white70, 
-                  fontSize: 8, 
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500
+                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ),
@@ -223,130 +198,239 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     );
   }
 
-  Widget _buildPlatforms(BuildContext context) {
-    const platforms = [
-      'Netflix',
-      'Amazon Prime Video',
-      'Disney+',
-      'Apple TV+',
-      'Crunchyroll',
-    ];
+  Widget _buildPlatforms(WidgetRef ref, String? selectedPlatform) {
+    final platforms = ['Netflix', 'Amazon Prime Video', 'Disney+', 'Apple TV+', 'Crunchyroll'];
+    
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: platforms.map((p) => GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PlatformChannelScreen(platformName: p),
+        children: platforms.map((p) {
+          final isSelected = selectedPlatform == p;
+          return GestureDetector(
+            onTap: () {
+              ref.read(selectedPlatformProvider.notifier).state = isSelected ? null : p;
+              ref.read(selectedGenreProvider.notifier).state = null;
+            },
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white12 : AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isSelected ? Colors.white24 : Colors.white10),
               ),
-            );
+              child: Row(
+                children: [
+                  PlatformIcon(name: p, size: 18),
+                  const SizedBox(width: 10),
+                  Text(
+                    p,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : AppColors.textSecondary,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildCategories(WidgetRef ref, String selectedCategory) {
+    final categories = ['Pour toi', 'Films', 'Séries', 'Animes', 'Musique'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: categories.map((cat) => _buildCategory(
+          cat, 
+          isSelected: selectedCategory == cat,
+          onTap: () {
+            ref.read(selectedCategoryProvider.notifier).state = cat;
+            ref.read(selectedGenreProvider.notifier).state = null;
+            ref.read(selectedPlatformProvider.notifier).state = null;
           },
-          child: Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(7),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Row(
-              children: [
-                PlatformIcon(name: p, size: 10),
-                const SizedBox(width: 5),
-                Text(
-                  p,
-                  style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
         )).toList(),
       ),
     );
   }
 
-  Widget _buildTrendingGrid(BuildContext context, AsyncValue<List<dynamic>> trending) {
+  Widget _buildHeroSection(BuildContext context, WidgetRef ref, AsyncValue<List<dynamic>> trending) {
     return trending.when(
-      data: (items) => GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 15,
-          childAspectRatio: 0.65,
-        ),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final movie = items[index];
-          final posterPath = movie['poster_path'];
-          final rating = movie['vote_average']?.toStringAsFixed(1) ?? 'N/A';
-          final title = movie['title'] ?? movie['name'] ?? '';
-          final platform = movie['platform'] ?? 'Netflix';
-
-          return GestureDetector(
-            onTap: () => _showMovieDetails(context, movie),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      data: (items) {
+        if (items.isEmpty) return const SizedBox();
+        final hero = items.first;
+        final title = hero['title'] ?? hero['name'] ?? 'Inconnu';
+        final backdropPath = hero['backdrop_path'];
+        
+        return GestureDetector(
+          onTap: () => _showMovieDetails(context, hero),
+          child: Container(
+            height: 300,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: AppColors.surface,
+              image: backdropPath != null ? DecorationImage(
+                image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}$backdropPath'),
+                fit: BoxFit.cover,
+              ) : null,
+            ),
+            child: Stack(
               children: [
-                Expanded(
-                  child: Stack(
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [Colors.black87, Colors.transparent],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 20,
+                  left: 20,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: AppColors.surface,
-                          image: posterPath != null ? DecorationImage(
-                            image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}$posterPath'),
-                            fit: BoxFit.cover,
-                          ) : null,
+                      Text(
+                        title.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(4),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white12,
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              hero['release_date']?.split('-')[0] ?? '2024',
+                              style: const TextStyle(color: Colors.white70, fontSize: 10),
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star, color: Colors.amber, size: 7),
-                              const SizedBox(width: 2),
-                              Text(
-                                rating,
-                                style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  platform,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 6),
-                ),
               ],
             ),
-          );
-        },
+          ),
+        );
+      },
+      loading: () => const SizedBox(height: 300, child: Center(child: CircularProgressIndicator(color: AppColors.neonCyan))),
+      error: (err, stack) => const SizedBox(),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+    );
+  }
+
+  Widget _buildHorizontalList(BuildContext context, AsyncValue<List<dynamic>> items) {
+    return SizedBox(
+      height: 200,
+      child: items.when(
+        data: (list) => ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: list.length,
+          itemBuilder: (context, index) {
+            final movie = list[index];
+            final posterPath = movie['poster_path'];
+            final rating = movie['vote_average']?.toStringAsFixed(1) ?? '0.0';
+            return GestureDetector(
+              onTap: () => _showMovieDetails(context, movie),
+              child: Container(
+                width: 130,
+                margin: const EdgeInsets.only(right: 15),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  color: AppColors.surface,
+                  image: posterPath != null ? DecorationImage(
+                    image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}$posterPath'),
+                    fit: BoxFit.cover,
+                  ) : null,
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.star, color: Colors.amber, size: 10),
+                            const SizedBox(width: 3),
+                            Text(rating, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
+        error: (err, stack) => const SizedBox(),
       ),
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
-      error: (e, s) => const SizedBox(),
+    );
+  }
+
+  Widget _buildSliverSearchResults(BuildContext context, AsyncValue<List<dynamic>> results) {
+    return results.when(
+      data: (list) => SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 15,
+            mainAxisSpacing: 15,
+            childAspectRatio: 0.7,
+          ),
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final item = list[index];
+              final posterPath = item['poster_path'];
+              return GestureDetector(
+                onTap: () => _showMovieDetails(context, item),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    color: AppColors.surface,
+                    image: posterPath != null ? DecorationImage(
+                      image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}$posterPath'),
+                      fit: BoxFit.cover,
+                    ) : null,
+                  ),
+                ),
+              );
+            },
+            childCount: list.length,
+          ),
+        ),
+      ),
+      loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator(color: AppColors.neonCyan))),
+      error: (err, stack) => const SliverToBoxAdapter(child: Center(child: Icon(Icons.error_outline, color: Colors.red))),
     );
   }
 
@@ -354,11 +438,11 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(right: 7),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.neonFuchsia.withValues(alpha: 0.2) : AppColors.surface,
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? AppColors.neonFuchsia : AppColors.outline,
           ),
@@ -368,23 +452,9 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
           style: TextStyle(
             color: isSelected ? Colors.white : AppColors.textSecondary,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 8,
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  const _SectionTitle({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
     );
   }
 }

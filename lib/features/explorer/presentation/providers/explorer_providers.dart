@@ -13,12 +13,18 @@ final popularMoviesProvider = FutureProvider<List<dynamic>>((ref) async {
 
 final selectedCategoryProvider = StateProvider<String>((ref) => 'Pour toi');
 final selectedGenreProvider = StateProvider<int?>((ref) => null);
+final selectedPlatformProvider = StateProvider<String?>((ref) => null);
 
 final filteredContentProvider = FutureProvider<List<dynamic>>((ref) async {
   final category = ref.watch(selectedCategoryProvider);
   final genreId = ref.watch(selectedGenreProvider);
+  final platformName = ref.watch(selectedPlatformProvider);
   final service = ref.watch(tmdbServiceProvider);
   
+  if (platformName != null) {
+    return service.getMoviesByProvider(platformName);
+  }
+
   if (genreId != null) {
     return service.getMoviesByGenre(genreId);
   }

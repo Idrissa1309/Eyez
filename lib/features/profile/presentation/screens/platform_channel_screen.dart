@@ -71,6 +71,7 @@ class PlatformChannelScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
           _buildSliverAppBar(context, normalizedName, data, isFollowing, ref),
           SliverToBoxAdapter(
@@ -94,11 +95,12 @@ class PlatformChannelScreen extends ConsumerWidget {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                   const SizedBox(height: 20),
-                  _buildPopularContent(context, ref),
                 ],
               ),
             ),
           ),
+          _buildSliverPopularContent(context, ref),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
@@ -190,47 +192,50 @@ class PlatformChannelScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPopularContent(BuildContext context, WidgetRef ref) {
+  Widget _buildSliverPopularContent(BuildContext context, WidgetRef ref) {
     final platformContent = ref.watch(platformContentProvider(platformName));
     
     return platformContent.when(
-      data: (items) => GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 15,
-          mainAxisSpacing: 15,
-          childAspectRatio: 0.7,
-        ),
-        itemCount: 6, // Limit for demo
-        itemBuilder: (context, index) {
-          final item = items[index];
-          final posterPath = item['poster_path'];
-          return GestureDetector(
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => MovieDetailsSheet(movie: item),
+      data: (items) => SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 15,
+            mainAxisSpacing: 15,
+            childAspectRatio: 0.7,
+          ),
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final item = items[index];
+              final posterPath = item['poster_path'];
+              return GestureDetector(
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => MovieDetailsSheet(movie: item),
+                  );
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    color: AppColors.surface,
+                    image: posterPath != null ? DecorationImage(
+                      image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}$posterPath'),
+                      fit: BoxFit.cover,
+                    ) : null,
+                  ),
+                ),
               );
             },
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                color: AppColors.surface,
-                image: posterPath != null ? DecorationImage(
-                  image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}$posterPath'),
-                  fit: BoxFit.cover,
-                ) : null,
-              ),
-            ),
-          );
-        },
+            childCount: items.length > 6 ? 6 : items.length, // Limit for demo
+          ),
+        ),
       ),
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
-      error: (e, s) => const SizedBox(),
+      loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator(color: AppColors.neonCyan))),
+      error: (e, s) => const SliverToBoxAdapter(child: SizedBox()),
     );
   }
 }

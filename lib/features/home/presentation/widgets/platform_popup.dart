@@ -42,20 +42,49 @@ class PlatformPopup extends ConsumerWidget {
       'url': 'https://www.crunchyroll.com',
       'logo': 'https://upload.wikimedia.org/wikipedia/commons/0/08/Crunchyroll_Logo.svg',
     },
+    'HBO': {
+      'subscribers': '95M',
+      'description': 'HBO propose les séries et films les plus acclamés par la critique, dont Game of Thrones et Succession.',
+      'url': 'https://www.hbo.com',
+      'logo': 'https://upload.wikimedia.org/wikipedia/commons/d/de/HBO_logo.svg',
+    },
+    'Paramount Plus': {
+      'subscribers': '63M',
+      'description': 'Une montagne de divertissement avec les films de Paramount, CBS et des séries originales.',
+      'url': 'https://www.paramountplus.com',
+      'logo': 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Paramount_Plus.svg',
+    },
+    'Peacock Premium': {
+      'subscribers': '30M',
+      'description': 'Le service de streaming de NBCUniversal avec des sports en direct, des films et des séries cultes.',
+      'url': 'https://www.peacocktv.com',
+      'logo': 'https://upload.wikimedia.org/wikipedia/commons/d/d3/Peacock_Logo.svg',
+    },
   };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final String normalizedName = platformData.keys.firstWhere(
-      (k) {
-        final key = k.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
-        final name = platformName.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
-        return key.contains(name) || name.contains(key);
-      },
-      orElse: () => 'Netflix',
-    );
+    String? foundKey;
+    try {
+      foundKey = platformData.keys.firstWhere(
+        (k) {
+          final key = k.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+          final name = platformName.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+          return key.contains(name) || name.contains(key);
+        },
+      );
+    } catch (_) {
+      foundKey = null;
+    }
+
+    final String normalizedName = foundKey ?? platformName;
     
-    final data = platformData[normalizedName]!;
+    final data = foundKey != null ? platformData[foundKey]! : {
+      'subscribers': 'N/A',
+      'description': 'Découvrez les contenus exclusifs de $platformName sur Eyez.',
+      'url': '',
+      'logo': '',
+    };
     final followData = ref.watch(platformFollowStatusProvider(normalizedName));
     final isFollowing = followData.value ?? false;
 
@@ -87,10 +116,21 @@ class PlatformPopup extends ConsumerWidget {
               ),
             ),
             
-            PlatformIcon(
-              name: normalizedName,
-              size: 80,
-              isCircular: true,
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PlatformChannelScreen(platformName: normalizedName),
+                  ),
+                );
+              },
+              child: PlatformIcon(
+                name: normalizedName,
+                size: 80,
+                isCircular: true,
+              ),
             ),
             
             const SizedBox(height: 20),

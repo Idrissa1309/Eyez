@@ -127,16 +127,23 @@ class SupabaseService {
     }
   }
 
-  static Future<void> toggleLike(String videoId) async {
+  static Future<void> toggleLike(Map<String, dynamic> movie) async {
     try {
       final user = currentUser;
       if (user == null) return;
 
+      final videoId = movie['id'].toString();
       final liked = await isLiked(videoId);
       if (liked) {
         await client.from('likes').delete().eq('user_id', user.id).eq('video_id', videoId);
       } else {
-        await client.from('likes').insert({'user_id': user.id, 'video_id': videoId});
+        await client.from('likes').insert({
+          'user_id': user.id, 
+          'video_id': videoId,
+          'tmdb_id': movie['id'],
+          'title': movie['title'] ?? movie['name'] ?? 'Inconnu',
+          'poster_path': movie['poster_path'],
+        });
       }
     } catch (e) {
       debugPrint('Supabase Error (toggleLike): $e');

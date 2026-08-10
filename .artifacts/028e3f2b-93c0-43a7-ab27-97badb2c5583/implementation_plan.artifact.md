@@ -1,65 +1,77 @@
-# Implementation Plan - Feature Enrichment & Content Realism
+# Plan d'implémentation - Correctifs Profil, Icones, Performances et Plateformes
 
-This plan focuses on making movie metadata dynamic, implementing the History feature, and enriching the Explorer screen with Genres and Platforms as requested.
+Ce plan détaille les modifications nécessaires pour corriger l'affichage des favoris, mettre à jour les icônes de navigation, optimiser la fluidité de l'application et corriger les popups de chaînes.
 
-## User Review Required
+## Revue Utilisateur Requise
 
 > [!IMPORTANT]
-> **Action Required in Supabase**: To enable the **History** feature, please execute the following SQL in your Supabase dashboard:
->
-> ```sql
-> -- Create table for user watch history
-> CREATE TABLE IF NOT EXISTS public.history (
->   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
->   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
->   tmdb_id INTEGER NOT NULL,
->   title TEXT NOT NULL,
->   poster_path TEXT,
->   watched_at TIMESTAMPTZ DEFAULT now() NOT NULL,
->   UNIQUE(user_id, tmdb_id) -- Updates the same movie entry
-> );
->
-> -- Enable Row Level Security
-> ALTER TABLE public.history ENABLE ROW LEVEL SECURITY;
->
-> -- Create policies
-> CREATE POLICY "Users can see their own history" ON public.history
->   FOR SELECT USING (auth.uid() = user_id);
-> CREATE POLICY "Users can manage their history" ON public.history
->   FOR ALL USING (auth.uid() = user_id);
-> ```
+> **Migration Supabase :** La table `likes` doit être mise à jour pour stocker les métadonnées des vidéos (titre, poster). Je vais fournir le script SQL, mais il devra être exécuté dans votre console Supabase si vous ne voulez pas perdre les affichages existants.
 
-## Proposed Changes
+> [!NOTE]
+> **Icônes :** L'augmentation de taille de 50% impactera la disposition de la barre de navigation. J'ajusterai les conteneurs pour maintenir l'équilibre visuel.
 
-### 1. Real Metadata & Dynamic Content
-- **`movie_details_sheet.dart`**: Replace hardcoded "EN" and "Netflix" with actual data from the `movie` object (`original_language`, `platform`).
-- **`tmdb_service.dart`**: Ensure `original_language` is included and formatted (e.g., 'fr' -> 'FR').
+> [!TIP]
+> **Popups de Chaînes :** Je vais ajouter le support pour HBO, Paramount+, Peacock, etc., et faire en sorte que si une chaîne n'est pas reconnue, elle affiche ses propres informations génériques plutôt que de se rabattre sur Netflix.
 
-### 2. Profile Overhaul
-- **Stats**:
-    - Remove "Abonnés".
-    - Update "Abonnements" to show the real count of followed platforms.
-    - Update "J'aime" to show the real count of liked videos.
-- **History Feature**:
-    - **`supabase_service.dart`**: Add `addToHistory(movie)` and `getHistory()`.
-    - **`video_feed_screen.dart`**: Trigger `addToHistory` when a video remains in focus for more than 3 seconds.
-    - **`profile_screen.dart`**: Implement the "Historique" tab to show a grid of recently watched content.
+## Modifications Proposées
 
-### 3. Platform & Channel Experience
-- **`platform_popup.dart`**: Fix platform logo display and add a tap action to the header to navigate to the new `PlatformChannelScreen`.
-- **`PlatformChannelScreen`**: [NEW] A dedicated page for a streaming platform (e.g., Disney+) showing its description, subscriber count, and a grid of its featured movies.
+### 1. Correction des Favoris (Bug "Inconnus")
 
-### 4. Explorer Screen Enrichment
-- **`explorer_screen.dart`**:
-    - Add a **Genres** horizontal list (Action, Aventure, Animation, etc.).
-    - Add a **Plateformes** horizontal list with small logos (Netflix, Prime, Disney+, etc.).
-    - Update the filtering logic to combine Category, Genre, and Platform selections.
+Le problème vient du fait que la table `likes` ne stocke que les IDs, alors que le profil a besoin des titres et des images pour l'affichage.
 
-## Verification Plan
+#### [SQL] [social_interact.sql](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/social_interact.sql)
+Proposer la migration suivante :
+```sql
+ALTER TABLE likes ADD COLUMN IF NOT EXISTS tmdb_id INTEGER;
+ALTER TABLE likes ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE likes ADD COLUMN IF NOT EXISTS poster_path TEXT;
+```
 
-### Manual Verification
-- [ ] Open a movie, verify its language (e.g., FR) and platform (e.g., Disney+) are correct in the popup.
-- [ ] Check Profile stats: confirm they match your actual follows and likes.
-- [ ] Watch a video for 5 seconds, go to Profile -> Historique, and verify it appears there.
-- [ ] In Explorer, tap "Animation" and "Crunchyroll" to verify the results are filtered correctly.
-- [ ] Click the Disney+ logo in a popup to open its dedicated "Channel" page.
+#### [MODIFY] [supabase_service.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/core/services/supabase_service.dart)
+- Modifier `toggleLike(String videoId)` en `toggleLike(Map<String, dynamic> movie)`.
+- Insérer `tmdb_id`, `title` et `poster_path` lors de l'ajout d'un like.
+
+#### [MODIFY] [video_feed_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/screens/video_feed_screen.dart) et [interaction_overlay.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/widgets/interaction_overlay.dart)
+- Passer l'objet `movie` complet à `SupabaseService.toggleLike`.
+
+---
+
+### 2. Mise à jour des Icônes et Taille
+
+#### [MODIFY] [main_navigation.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/main_navigation.dart)
+- Remplacer `icon_foreground.png` par `icon_transparent.png`.
+- Augmenter la taille de l'icône centrale de 58 à 87 (+50%).
+- Ajuster les dimensions du halo (`glow halo`) et du cercle néon pour s'adapter à la nouvelle taille.
+
+#### [MODIFY] [pubspec.yaml](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/pubspec.yaml)
+- Mettre à jour `adaptive_icon_foreground` pour pointer vers `assets/icons/icon_transparent.png`.
+
+---
+
+### 3. Correction du Popup des Chaines
+
+#### [MODIFY] [platform_popup.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/widgets/platform_popup.dart)
+- Ajouter les données pour "HBO", "Peacock Premium", "Paramount Plus", etc. dans `platformData`.
+- Modifier la logique de fallback pour utiliser le nom réel de la plateforme passé en paramètre si elle n'est pas dans la liste prédéfinie, au lieu de forcer "Netflix".
+
+#### [MODIFY] [brand_icons.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/brand_icons.dart)
+- Ajouter les URLs des logos pour les nouvelles plateformes supportées.
+
+---
+
+### 4. Optimisation des Performances
+
+#### [MODIFY] [profile_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/profile/presentation/screens/profile_screen.dart)
+- Remplacer `SingleChildScrollView` par `CustomScrollView`.
+- Convertir les `GridView.builder` (avec `shrinkWrap: true`) en `SliverGrid` pour permettre le chargement paresseux (Lazy Loading) et améliorer la fluidité du défilement.
+
+#### [MODIFY] [explorer_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/explorer/presentation/screens/explorer_screen.dart)
+- Supprimer les usages de `shrinkWrap: true` dans les listes complexes pour optimiser le rendu.
+
+## Plan de Vérification
+
+### Tests Manuels
+- Vérifier que l'ajout d'un favori affiche correctement le titre et l'image dans le profil.
+- Confirmer que la barre de navigation affiche la nouvelle icône transparente en plus grand.
+- Cliquer sur HBO, Paramount+, etc., et vérifier que le popup affiche les bonnes informations.
+- Tester le défilement du profil pour valider le gain de fluidité.

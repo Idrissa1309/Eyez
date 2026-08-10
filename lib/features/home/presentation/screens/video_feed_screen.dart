@@ -8,7 +8,6 @@ import 'package:video_player/video_player.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/providers/ambient_provider.dart';
@@ -201,7 +200,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     final videoId = widget.movie['id'].toString();
     final wasLiked = ref.read(likeStatusProvider(videoId)).value ?? false;
     
-    await SupabaseService.toggleLike(videoId);
+    await SupabaseService.toggleLike(widget.movie);
     ref.invalidate(likeStatusProvider(videoId));
     
     if (mounted) {

@@ -95,7 +95,7 @@ class _InteractionOverlayState extends ConsumerState<InteractionOverlay> {
                       color: AppColors.neonFuchsia,
                       isActive: isLiked,
                       onTap: () async {
-                        await SupabaseService.toggleLike(widget.videoId);
+                        await SupabaseService.toggleLike(widget.movie);
                         ref.invalidate(likeStatusProvider(widget.videoId));
                       },
                     ),
