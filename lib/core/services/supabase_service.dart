@@ -43,7 +43,7 @@ class SupabaseService {
     try {
       final email = currentUser?.email;
       if (email == null) return false;
-      
+
       // Attempt a temporary sign in to verify the current password
       await client.auth.signInWithPassword(email: email, password: password);
       return true;
@@ -77,7 +77,7 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return;
 
-      final tmdbId = movie['id'];
+      final tmdbId = movie['id'] ?? movie['tmdb_id'];
       
       final existing = await client
           .from('saved_lists')
@@ -98,6 +98,8 @@ class SupabaseService {
           'tmdb_id': tmdbId,
           'title': movie['title'] ?? movie['name'] ?? 'Unknown',
           'poster_path': movie['poster_path'],
+          'thumbnail_url': movie['thumbnail_url'],
+          'overview': movie['overview'],
           'media_type': movie['release_date'] != null ? 'movie' : 'tv',
         });
       }
@@ -132,17 +134,20 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return;
 
-      final videoId = movie['id'].toString();
+      final videoId = (movie['id'] ?? movie['tmdb_id']).toString();
       final liked = await isLiked(videoId);
+      
       if (liked) {
         await client.from('likes').delete().eq('user_id', user.id).eq('video_id', videoId);
       } else {
         await client.from('likes').insert({
           'user_id': user.id, 
           'video_id': videoId,
-          'tmdb_id': movie['id'],
+          'tmdb_id': movie['id'] ?? movie['tmdb_id'],
           'title': movie['title'] ?? movie['name'] ?? 'Inconnu',
           'poster_path': movie['poster_path'],
+          'thumbnail_url': movie['thumbnail_url'],
+          'overview': movie['overview'],
         });
       }
     } catch (e) {
@@ -240,7 +245,6 @@ class SupabaseService {
 
       return response != null;
     } catch (e) {
-      // Return false if table is missing or network error
       debugPrint('Supabase Error (isFollowingPlatform): $e');
       return false;
     }
@@ -282,7 +286,7 @@ class SupabaseService {
       return (response as List).map((e) => e['platform_name'] as String).toList();
     } catch (e) {
       debugPrint('Supabase Error (getFollowedPlatforms): $e');
-      return []; // Return empty list instead of error
+      return [];
     }
   }
 
@@ -351,7 +355,7 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return;
 
-      final tmdbId = movie['id'];
+      final tmdbId = movie['id'] ?? movie['tmdb_id'];
       if (tmdbId == null) return;
 
       await client.from('watched_history').upsert({
@@ -359,6 +363,7 @@ class SupabaseService {
         'tmdb_id': tmdbId,
         'title': movie['title'] ?? movie['name'] ?? 'Inconnu',
         'poster_path': movie['poster_path'],
+        'overview': movie['overview'],
         'watched_at': DateTime.now().toIso8601String(),
       }, onConflict: 'user_id, tmdb_id');
     } catch (e) {

@@ -124,9 +124,9 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
   }
 
   Widget _buildHeader() {
-    return Row(
+    return const Row(
       children: [
-        const Text(
+        Text(
           'EXPLORER',
           style: TextStyle(
             fontSize: 20,
@@ -134,8 +134,8 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             letterSpacing: 2,
           ),
         ),
-        const Spacer(),
-        const Text(
+        Spacer(),
+        Text(
           'Découvrir du contenu',
           style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
         ),
@@ -147,10 +147,10 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     return TextField(
       focusNode: _searchFocusNode,
       onChanged: (value) => ref.read(searchQueryProvider.notifier).state = value,
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         hintText: 'Rechercher un film, une série...',
-        prefixIcon: const Icon(Icons.search),
-        suffixIcon: const Icon(Icons.tune),
+        prefixIcon: Icon(Icons.search),
+        suffixIcon: Icon(Icons.tune),
         fillColor: AppColors.surface,
       ),
     );

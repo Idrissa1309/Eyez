@@ -42,21 +42,23 @@ class PlatformIcon extends StatelessWidget {
   final String name;
   final double size;
   final bool isCircular;
+  final String? imageUrl;
 
   const PlatformIcon({
     super.key, 
     required this.name, 
     this.size = 18,
     this.isCircular = false,
+    this.imageUrl,
   });
 
   static const Map<String, String> _logoUrls = {
-    'netflix': 'https://upload.wikimedia.org/wikipedia/commons/0/03/Netflix-icon.png',
-    'disney+': 'https://cdn.sortiraparis.com/images/80/69688/1115446-logo-disney.jpg',
-    'amazon prime video': 'https://www.pngall.com/wp-content/uploads/15/Amazon-Prime-Video-Logo-PNG-Cutout.png',
-    'prime video': 'https://www.pngall.com/wp-content/uploads/15/Amazon-Prime-Video-Logo-PNG-Cutout.png',
-    'apple tv+': 'https://upload.wikimedia.org/wikipedia/commons/a/ad/AppleTVLogo.svg',
-    'crunchyroll': 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Crunchyroll_logo_.webp',
+    'netflix': 'https://upload.wikimedia.org/wikipedia/commons/f/ff/Netflix-new-icon.png',
+    'disney+': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg',
+    'amazon prime video': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Prime_Video.png',
+    'prime video': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Prime_Video.png',
+    'apple tv+': 'https://upload.wikimedia.org/wikipedia/commons/2/28/Apple_TV_Plus_Logo.svg',
+    'crunchyroll': 'https://upload.wikimedia.org/wikipedia/commons/0/08/Crunchyroll_Logo.svg',
     'hbo': 'https://upload.wikimedia.org/wikipedia/commons/d/de/HBO_logo.svg',
     'paramount plus': 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Paramount_Plus.svg',
     'peacock premium': 'https://upload.wikimedia.org/wikipedia/commons/d/d3/Peacock_Logo.svg',
@@ -65,14 +67,26 @@ class PlatformIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final normalized = name.toLowerCase();
-    final url = _logoUrls[normalized];
+    final normalized = name.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+    
+    // Check for hardcoded map by searching for containing keys
+    String? foundUrl;
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      foundUrl = imageUrl;
+    } else {
+      try {
+        final key = _logoUrls.keys.firstWhere((k) => normalized.contains(k.replaceAll('+', '').replaceAll(' ', '')));
+        foundUrl = _logoUrls[key];
+      } catch (_) {
+        foundUrl = null;
+      }
+    }
 
     Widget icon;
-    if (url != null) {
-      if (url.endsWith('.svg')) {
+    if (foundUrl != null && foundUrl.isNotEmpty) {
+      if (foundUrl.endsWith('.svg')) {
         icon = SvgPicture.network(
-          url,
+          foundUrl,
           width: size,
           height: size,
           fit: BoxFit.contain,
@@ -80,7 +94,7 @@ class PlatformIcon extends StatelessWidget {
         );
       } else {
         icon = CachedNetworkImage(
-          imageUrl: url,
+          imageUrl: foundUrl,
           width: size,
           height: size,
           fit: BoxFit.contain,

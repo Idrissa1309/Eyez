@@ -5,65 +5,31 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/tmdb_service.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../shared/widgets/brand_icons.dart';
+import '../../../../core/constants/platform_constants.dart';
 import '../../../home/presentation/providers/interaction_providers.dart';
 import '../../../home/presentation/widgets/movie_details_sheet.dart';
 import '../../../explorer/presentation/providers/explorer_providers.dart';
 
 class PlatformChannelScreen extends ConsumerWidget {
   final String platformName;
+  final String? platformLogo;
 
-  const PlatformChannelScreen({super.key, required this.platformName});
-
-  static const Map<String, Map<String, String>> platformData = {
-    'Netflix': {
-      'subscribers': '260M',
-      'description': 'Netflix est un service de divertissement par abonnement de premier plan, proposant des films et des séries télévisées.',
-      'url': 'https://www.netflix.com',
-      'banner': 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?q=80&w=2069&auto=format&fit=crop',
-    },
-    'Disney+': {
-      'subscribers': '150M',
-      'description': 'Disney, Pixar, Marvel, Star Wars et National Geographic réunis.',
-      'url': 'https://www.disneyplus.com',
-      'banner': 'https://images.unsplash.com/photo-1633613286991-611fe299c4be?q=80&w=2070&auto=format&fit=crop',
-    },
-    'Amazon Prime Video': {
-      'subscribers': '200M',
-      'description': 'Profitez de films et séries exclusifs, ainsi que des avantages Amazon Prime.',
-      'url': 'https://www.primevideo.com',
-      'banner': 'https://images.unsplash.com/photo-1585647347483-22b66260dfff?q=80&w=2070&auto=format&fit=crop',
-    },
-    'Apple TV+': {
-      'subscribers': '50M',
-      'description': 'Des histoires originales des esprits les plus créatifs de la télévision et du cinéma.',
-      'url': 'https://tv.apple.com',
-      'banner': 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?q=80&w=1974&auto=format&fit=crop',
-    },
-    'Crunchyroll': {
-      'subscribers': '12M',
-      'description': 'Le leader mondial du streaming d\'animes, proposant la plus grande bibliothèque de titres.',
-      'url': 'https://www.crunchyroll.com',
-      'banner': 'https://images.unsplash.com/photo-1578632738981-433069c3a378?q=80&w=2070&auto=format&fit=crop',
-    },
-  };
+  const PlatformChannelScreen({
+    super.key, 
+    required this.platformName,
+    this.platformLogo,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final String normalizedName = platformData.keys.firstWhere(
-      (k) {
-        final key = k.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
-        final name = platformName.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
-        return key.contains(name) || name.contains(key);
-      },
-      orElse: () => platformName,
-    );
+    final String? foundKey = PlatformConstants.findKey(platformName);
+    final String normalizedName = foundKey ?? platformName;
     
-    final data = platformData[normalizedName] ?? {
-      'subscribers': '1M+',
-      'description': 'Découvrez tout le contenu disponible sur $normalizedName.',
-      'url': '',
-      'banner': 'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=2059&auto=format&fit=crop',
-    };
+    final data = foundKey != null 
+        ? PlatformConstants.platformData[foundKey]! 
+        : PlatformConstants.getFallbackData(platformName);
+
+    final String logoUrl = (foundKey != null ? data['logo'] : platformLogo) ?? '';
 
     final followData = ref.watch(platformFollowStatusProvider(normalizedName));
     final isFollowing = followData.value ?? false;
@@ -73,7 +39,7 @@ class PlatformChannelScreen extends ConsumerWidget {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          _buildSliverAppBar(context, normalizedName, data, isFollowing, ref),
+          _buildSliverAppBar(context, normalizedName, data, logoUrl, isFollowing, ref),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -106,7 +72,7 @@ class PlatformChannelScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSliverAppBar(BuildContext context, String name, Map<String, String> data, bool isFollowing, WidgetRef ref) {
+  Widget _buildSliverAppBar(BuildContext context, String name, Map<String, String> data, String logoUrl, bool isFollowing, WidgetRef ref) {
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
@@ -140,6 +106,7 @@ class PlatformChannelScreen extends ConsumerWidget {
                 children: [
                   PlatformIcon(
                     name: name,
+                    imageUrl: logoUrl,
                     size: 60,
                     isCircular: true,
                   ),
@@ -153,10 +120,11 @@ class PlatformChannelScreen extends ConsumerWidget {
                           name,
                           style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          '${data['subscribers']} abonnés',
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
+                        if (data['subscribers'] != 'N/A')
+                          Text(
+                            '${data['subscribers']} abonnés',
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
                       ],
                     ),
                   ),

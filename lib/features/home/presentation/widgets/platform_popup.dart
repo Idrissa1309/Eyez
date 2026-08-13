@@ -3,88 +3,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../shared/widgets/brand_icons.dart';
+import '../../../../core/constants/platform_constants.dart';
 import '../../../profile/presentation/screens/platform_channel_screen.dart';
 import '../providers/interaction_providers.dart';
 
 class PlatformPopup extends ConsumerWidget {
   final String platformName;
+  final String? platformLogo;
 
-  const PlatformPopup({super.key, required this.platformName});
-
-  static const Map<String, Map<String, String>> platformData = {
-    'Netflix': {
-      'subscribers': '260M',
-      'description': 'Netflix est un service de divertissement par abonnement de premier plan, proposant des films et des séries télévisées.',
-      'url': 'https://www.netflix.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/f/ff/Netflix-new-icon.png',
-    },
-    'Disney+': {
-      'subscribers': '150M',
-      'description': 'Disney, Pixar, Marvel, Star Wars et National Geographic réunis.',
-      'url': 'https://www.disneyplus.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg',
-    },
-    'Amazon Prime Video': {
-      'subscribers': '200M',
-      'description': 'Profitez de films et séries exclusifs, ainsi que des avantages Amazon Prime.',
-      'url': 'https://www.primevideo.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Prime_Video.png',
-    },
-    'Apple TV+': {
-      'subscribers': '50M',
-      'description': 'Des histoires originales des esprits les plus créatifs de la télévision et du cinéma.',
-      'url': 'https://tv.apple.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/2/28/Apple_TV_Plus_Logo.svg',
-    },
-    'Crunchyroll': {
-      'subscribers': '12M',
-      'description': 'Le leader mondial du streaming d\'animes, proposant la plus grande bibliothèque de titres.',
-      'url': 'https://www.crunchyroll.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/0/08/Crunchyroll_Logo.svg',
-    },
-    'HBO': {
-      'subscribers': '95M',
-      'description': 'HBO propose les séries et films les plus acclamés par la critique, dont Game of Thrones et Succession.',
-      'url': 'https://www.hbo.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/d/de/HBO_logo.svg',
-    },
-    'Paramount Plus': {
-      'subscribers': '63M',
-      'description': 'Une montagne de divertissement avec les films de Paramount, CBS et des séries originales.',
-      'url': 'https://www.paramountplus.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Paramount_Plus.svg',
-    },
-    'Peacock Premium': {
-      'subscribers': '30M',
-      'description': 'Le service de streaming de NBCUniversal avec des sports en direct, des films et des séries cultes.',
-      'url': 'https://www.peacocktv.com',
-      'logo': 'https://upload.wikimedia.org/wikipedia/commons/d/d3/Peacock_Logo.svg',
-    },
-  };
+  const PlatformPopup({
+    super.key, 
+    required this.platformName,
+    this.platformLogo,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    String? foundKey;
-    try {
-      foundKey = platformData.keys.firstWhere(
-        (k) {
-          final key = k.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
-          final name = platformName.toLowerCase().replaceAll('+', '').replaceAll(' ', '');
-          return key.contains(name) || name.contains(key);
-        },
-      );
-    } catch (_) {
-      foundKey = null;
-    }
-
+    final String? foundKey = PlatformConstants.findKey(platformName);
     final String normalizedName = foundKey ?? platformName;
     
-    final data = foundKey != null ? platformData[foundKey]! : {
-      'subscribers': 'N/A',
-      'description': 'Découvrez les contenus exclusifs de $platformName sur Eyez.',
-      'url': '',
-      'logo': '',
-    };
+    final data = foundKey != null 
+        ? PlatformConstants.platformData[foundKey]! 
+        : PlatformConstants.getFallbackData(platformName);
+        
+    final String logoUrl = (foundKey != null ? data['logo'] : platformLogo) ?? '';
+
     final followData = ref.watch(platformFollowStatusProvider(normalizedName));
     final isFollowing = followData.value ?? false;
 
@@ -122,12 +65,16 @@ class PlatformPopup extends ConsumerWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PlatformChannelScreen(platformName: normalizedName),
+                    builder: (context) => PlatformChannelScreen(
+                      platformName: normalizedName,
+                      platformLogo: logoUrl,
+                    ),
                   ),
                 );
               },
               child: PlatformIcon(
                 name: normalizedName,
+                imageUrl: logoUrl,
                 size: 80,
                 isCircular: true,
               ),
@@ -140,10 +87,11 @@ class PlatformPopup extends ConsumerWidget {
               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
             ),
             
-            Text(
-              '${data['subscribers']} abonnés',
-              style: const TextStyle(color: Colors.white54, fontSize: 13),
-            ),
+            if (data['subscribers'] != 'N/A')
+              Text(
+                '${data['subscribers']} abonnés',
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
             
             const SizedBox(height: 20),
             
@@ -212,7 +160,10 @@ class PlatformPopup extends ConsumerWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PlatformChannelScreen(platformName: normalizedName),
+                    builder: (context) => PlatformChannelScreen(
+                      platformName: normalizedName,
+                      platformLogo: logoUrl,
+                    ),
                   ),
                 );
               },

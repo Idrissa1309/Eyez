@@ -24,6 +24,9 @@ class ProfileVideoPlayerScreen extends StatelessWidget {
         body: UniversalVideoPlayerItem(
           movie: movie,
           isFocused: true,
+          index: 0,
+          focusedIndex: 0,
+          isTabActive: true,
         ),
       ),
     );

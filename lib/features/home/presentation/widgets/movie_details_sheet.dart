@@ -23,6 +23,7 @@ class MovieDetailsSheet extends ConsumerWidget {
 
     // Watch the list state directly for instant reactivity
     final isSaved = tmdbId != null && ref.watch(myListProvider.notifier).isSaved(tmdbId);
+    final isYouTubeDirect = movie?['is_youtube_direct'] ?? false;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -59,14 +60,21 @@ class MovieDetailsSheet extends ConsumerWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: posterPath != null 
+                  child: (posterPath != null)
                     ? CachedNetworkImage(
                         imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
                         width: 90,
                         height: 130,
                         fit: BoxFit.cover,
                       )
-                    : Container(width: 90, height: 130, color: Colors.white10),
+                    : (movie?['thumbnail_url'] != null)
+                      ? CachedNetworkImage(
+                          imageUrl: movie!['thumbnail_url'],
+                          width: 90,
+                          height: 130,
+                          fit: BoxFit.cover,
+                        )
+                      : Container(width: 90, height: 130, color: Colors.white10),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
@@ -80,21 +88,27 @@ class MovieDetailsSheet extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 20),
-                          const SizedBox(width: 5),
-                          Text(
-                            rating,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '($voteCount)',
-                            style: const TextStyle(color: Colors.white38, fontSize: 14),
-                          ),
-                        ],
-                      ),
+                      if (!isYouTubeDirect)
+                        Row(
+                          children: [
+                            const Icon(Icons.star, color: Colors.amber, size: 20),
+                            const SizedBox(width: 5),
+                            Text(
+                              rating,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '($voteCount)',
+                              style: const TextStyle(color: Colors.white38, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      if (isYouTubeDirect)
+                        const Text(
+                          'Contenu YouTube',
+                          style: TextStyle(color: AppColors.neonCyan, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
                     ],
                   ),
                 ),

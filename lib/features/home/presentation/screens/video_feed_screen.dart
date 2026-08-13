@@ -12,6 +12,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/providers/ambient_provider.dart';
 import '../../../../core/providers/navigation_provider.dart';
+import '../../../../core/providers/volume_provider.dart';
 import '../../../../core/services/tmdb_service.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../widgets/interaction_overlay.dart';
@@ -35,6 +36,8 @@ class _VideoFeedScreenState extends ConsumerState<VideoFeedScreen> {
   @override
   Widget build(BuildContext context) {
     final feedAsync = ref.watch(tmdbVideoFeedProvider);
+    final activeTab = ref.watch(navigationIndexProvider);
+    final isTabActive = activeTab == 0;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -56,6 +59,9 @@ class _VideoFeedScreenState extends ConsumerState<VideoFeedScreen> {
               return UniversalVideoPlayerItem(
                 movie: videos[index],
                 isFocused: index == _focusedIndex,
+                index: index,
+                focusedIndex: _focusedIndex,
+                isTabActive: isTabActive,
               );
             },
           );
@@ -70,11 +76,17 @@ class _VideoFeedScreenState extends ConsumerState<VideoFeedScreen> {
 class UniversalVideoPlayerItem extends ConsumerStatefulWidget {
   final Map<String, dynamic> movie;
   final bool isFocused;
+  final int index;
+  final int focusedIndex;
+  final bool isTabActive;
   
   const UniversalVideoPlayerItem({
     super.key, 
     required this.movie, 
     required this.isFocused,
+    required this.index,
+    required this.focusedIndex,
+    required this.isTabActive,
   });
 
   @override
@@ -100,22 +112,39 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
   @override
   void initState() {
     super.initState();
-    _initPlayer();
+    // Only init if it's near the focused index AND the tab is active
+    if ((widget.index - widget.focusedIndex).abs() <= 1 && widget.isTabActive) {
+      _initPlayer();
+    }
     _heartController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _heartAnimation = CurvedAnimation(parent: _heartController, curve: Curves.elasticOut);
   }
 
   void _initPlayer() async {
+    if (_initialized) return;
+
+    // Add a small delay and double-check focus to avoid rate-limiting during fast swiping
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted || (widget.index - widget.focusedIndex).abs() > 1 || !widget.isTabActive) return;
+
     final videoKey = widget.movie['video_key'];
+    final isMuted = ref.read(isMutedProvider);
+
+    // 1. Check Cache first
+    final cachedUrl = ref.read(resolvedVideoUrlsProvider)[videoKey];
+    if (cachedUrl != null && !kIsWeb) {
+      _initNativeController(cachedUrl, isMuted);
+      return;
+    }
 
     if (kIsWeb) {
       _webController = YoutubePlayerController.fromVideoId(
         videoId: videoKey,
         autoPlay: true,
-        params: const YoutubePlayerParams(
+        params: YoutubePlayerParams(
           showControls: false,
           showFullscreenButton: false,
-          mute: true,
+          mute: isMuted,
           loop: true,
           showVideoAnnotations: false,
           strictRelatedVideos: true,
@@ -131,7 +160,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
         if (state.playerState == PlayerState.playing && !_webVideoStarted) {
           if (mounted) {
             setState(() => _webVideoStarted = true);
-            WakelockPlus.enable(); // Keep screen on for Web if supported
+            WakelockPlus.enable(); 
           }
         }
       });
@@ -140,22 +169,18 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
       try {
         final manifest = await yt.videos.streamsClient.getManifest(videoKey);
         final streamInfo = manifest.muxed.withHighestBitrate();
-        _nativeController = VideoPlayerController.networkUrl(Uri.parse(streamInfo.url.toString()))
-          ..initialize().then((_) {
-            if (mounted) {
-              setState(() {
-                _initialized = true;
-                if (widget.isFocused) {
-                  _nativeController!.play();
-                  WakelockPlus.enable(); // Keep screen on
-                }
-                _nativeController!.setLooping(true);
-              });
-            }
-          });
+        final directUrl = streamInfo.url.toString();
+
+        // Save to cache for future use
+        ref.read(resolvedVideoUrlsProvider.notifier).update((state) => {
+          ...state,
+          videoKey: directUrl,
+        });
+
+        _initNativeController(directUrl, isMuted);
       } catch (e) {
         if (mounted) {
-          setState(() => _error = 'Erreur de chargement.');
+          setState(() => _error = 'Rate Limit YouTube. Veuillez patienter.');
         }
       } finally {
         yt.close();
@@ -163,12 +188,44 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     }
   }
 
+  void _initNativeController(String url, bool isMuted) {
+    _nativeController = VideoPlayerController.networkUrl(Uri.parse(url))
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() {
+            _initialized = true;
+            _nativeController!.setVolume(isMuted ? 0.0 : 1.0);
+            if (widget.isFocused) {
+              _nativeController!.play();
+              WakelockPlus.enable();
+            }
+            _nativeController!.setLooping(true);
+          });
+        }
+      });
+  }
+
   @override
   void didUpdateWidget(UniversalVideoPlayerItem oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_initialized) return;
+    
+    // SLIDING WINDOW LOGIC:
+    // 1. If we are now far from focus, dispose to free up network/IP rate limits
+    if ((widget.index - widget.focusedIndex).abs() > 1) {
+      if (_initialized) {
+        _disposePlayer();
+      }
+      return;
+    }
 
-    if (widget.isFocused) {
+    // 2. If we are now near focus but not initialized, init
+    if (!_initialized && widget.isTabActive) {
+      _initPlayer();
+      return;
+    }
+
+    // 3. Normal Play/Pause logic
+    if (widget.isFocused && widget.isTabActive) {
       WakelockPlus.enable();
       if (kIsWeb) {
         _webController?.playVideo();
@@ -177,12 +234,24 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
       }
       ref.read(historyProvider.notifier).addToHistory(widget.movie);
     } else {
-      WakelockPlus.disable();
       if (kIsWeb) {
         _webController?.pauseVideo();
       } else {
         _nativeController?.pause();
       }
+    }
+  }
+
+  void _disposePlayer() {
+    _nativeController?.dispose();
+    _webController?.close();
+    _nativeController = null;
+    _webController = null;
+    if (mounted) {
+      setState(() {
+        _initialized = false;
+        _webVideoStarted = false;
+      });
     }
   }
 
@@ -200,7 +269,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     final videoId = widget.movie['id'].toString();
     final wasLiked = ref.read(likeStatusProvider(videoId)).value ?? false;
     
-    await SupabaseService.toggleLike(widget.movie);
+    await SupabaseService.toggleLike(widget.movie); // Updated to pass movie map
     ref.invalidate(likeStatusProvider(videoId));
     
     if (mounted) {
@@ -273,14 +342,35 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
   @override
   Widget build(BuildContext context) {
     final posterPath = widget.movie['poster_path'];
+    final backdropPath = widget.movie['backdrop_path'];
+    final thumbnailUrl = widget.movie['thumbnail_url'];
+    final isMuted = ref.watch(isMutedProvider);
+
+    // React to volume changes immediately
+    ref.listen(isMutedProvider, (previous, next) {
+      if (kIsWeb) {
+        if (next) {
+          _webController?.mute();
+        } else {
+          _webController?.unMute();
+        }
+      } else {
+        _nativeController?.setVolume(next ? 0.0 : 1.0);
+      }
+    });
 
     Widget content = Stack(
       fit: StackFit.expand,
       children: [
-        // 1. Cinematic Backdrop
+        // 1. Cinematic Backdrop (Handle TMDB or Direct YouTube)
         if (posterPath != null)
           CachedNetworkImage(
             imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
+            fit: BoxFit.cover,
+          )
+        else if (thumbnailUrl != null || backdropPath != null)
+          CachedNetworkImage(
+            imageUrl: thumbnailUrl ?? backdropPath!,
             fit: BoxFit.cover,
           ),
         BackdropFilter(
@@ -288,7 +378,6 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
           child: Container(color: Colors.black.withValues(alpha: 0.5)),
         ),
         
-        // 2. Video Surface
         if (_initialized)
           Center(
             child: kIsWeb 
@@ -310,10 +399,10 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
                         ),
                       ),
                     ),
-                    if (!_webVideoStarted && posterPath != null)
+                    if (!_webVideoStarted && (posterPath != null || thumbnailUrl != null))
                       Positioned.fill(
                         child: CachedNetworkImage(
-                          imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
+                          imageUrl: posterPath != null ? '${TMDBService.imageBaseUrl}$posterPath' : (thumbnailUrl ?? backdropPath!),
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -325,11 +414,19 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
                 ),
           )
         else if (_error != null)
-          Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.speed, color: Colors.orange, size: 40),
+                const SizedBox(height: 10),
+                Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+              ],
+            ),
+          )
         else
           const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
 
-        // 2b. Interaction Layer for Web (Captures taps above Iframe)
         if (kIsWeb)
           Positioned.fill(
             child: PointerInterceptor(
@@ -352,7 +449,6 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
             ),
           ),
 
-        // Legibility Gradient
         Positioned.fill(
           child: IgnorePointer(
             child: Container(
@@ -390,7 +486,6 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
           child: _buildInfoOverlay(),
         ),
         
-        // 5. Progress Indicator
         if (_initialized)
           Positioned(
             bottom: 87,
@@ -419,9 +514,13 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
             top: 60,
             right: 20,
             child: IconButton(
-              icon: const Icon(Icons.search, color: Colors.white, size: 28),
+              icon: Icon(
+                isMuted ? Icons.volume_off : Icons.volume_up, 
+                color: Colors.white, 
+                size: 28
+              ),
               onPressed: () {
-                ref.read(navigationIndexProvider.notifier).state = 1; // Go to Explorer tab
+                ref.read(isMutedProvider.notifier).state = !isMuted;
               },
             ),
           ),

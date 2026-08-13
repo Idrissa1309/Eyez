@@ -79,7 +79,12 @@ class TMDBService {
         final details = await getDetails(id, type);
         
         final List<String> platformNames = [];
-        if (isAnime) platformNames.add('Crunchyroll');
+        final List<String> platformLogos = [];
+
+        if (isAnime) {
+          platformNames.add('Crunchyroll');
+          platformLogos.add(''); // Use hardcoded or dynamic logo later
+        }
         
         final regions = ['FR', 'US', 'JP'];
         for (var region in regions) {
@@ -87,7 +92,11 @@ class TMDBService {
           if (providers != null) {
             for (var p in providers) {
               final name = p['provider_name'] as String;
-              if (!platformNames.contains(name)) platformNames.add(name);
+              final logo = p['logo_path'] as String?;
+              if (!platformNames.contains(name)) {
+                platformNames.add(name);
+                platformLogos.add(logo != null ? '${TMDBService.imageBaseUrl}$logo' : '');
+              }
             }
           }
         }
@@ -95,13 +104,16 @@ class TMDBService {
         if (platformNames.isEmpty) {
           // Provide variety if no provider found
           final fallbacks = ['Netflix', 'Amazon Prime Video', 'Disney+'];
-          platformNames.add(fallbacks[id % fallbacks.length]);
+          final selected = fallbacks[id % fallbacks.length];
+          platformNames.add(selected);
+          platformLogos.add('');
         }
 
         return <String, dynamic>{
           ...Map<String, dynamic>.from(item),
           'platforms': platformNames,
           'platform': platformNames.first,
+          'platform_logo': platformLogos.first,
           'accent_color': _getAccentColorForGenre(item['genre_ids']?.first),
           'original_language_name': getLanguageName(item['original_language']),
         };
@@ -237,7 +249,7 @@ class TMDBService {
   Future<List<Map<String, dynamic>>> getTrendingWithVideos() async {
     try {
       final trending = await getTrending();
-      final List<Future<Map<String, dynamic>?>> detailFutures = trending.take(15).map((item) async {
+      final List<Future<Map<String, dynamic>?>> detailFutures = trending.take(40).map((item) async {
         final id = item['id'];
         final type = item['media_type'] ?? 'movie';
         final isAnime = (item['genre_ids'] as List?)?.contains(16) ?? false;
@@ -254,7 +266,12 @@ class TMDBService {
 
             if (trailer != null) {
               final List<String> platformNames = [];
-              if (isAnime) platformNames.add('Crunchyroll');
+              final List<String> platformLogos = [];
+
+              if (isAnime) {
+                platformNames.add('Crunchyroll');
+                platformLogos.add('');
+              }
               
               final regions = ['FR', 'US', 'JP'];
               for (var region in regions) {
@@ -262,14 +279,20 @@ class TMDBService {
                 if (providers != null) {
                   for (var p in providers) {
                     final name = p['provider_name'] as String;
-                    if (!platformNames.contains(name)) platformNames.add(name);
+                    final logo = p['logo_path'] as String?;
+                    if (!platformNames.contains(name)) {
+                      platformNames.add(name);
+                      platformLogos.add(logo != null ? '${TMDBService.imageBaseUrl}$logo' : '');
+                    }
                   }
                 }
               }
 
               if (platformNames.isEmpty) {
                 final fallbacks = ['Netflix', 'Amazon Prime Video', 'Disney+'];
-                platformNames.add(fallbacks[id % fallbacks.length]);
+                final selected = fallbacks[id % fallbacks.length];
+                platformNames.add(selected);
+                platformLogos.add('');
               }
 
               return <String, dynamic>{
@@ -277,6 +300,7 @@ class TMDBService {
                 'video_key': trailer['key'],
                 'platforms': platformNames,
                 'platform': platformNames.first,
+                'platform_logo': platformLogos.first,
                 'accent_color': _getAccentColorForGenre(item['genre_ids']?.first),
                 'original_language_name': getLanguageName(item['original_language']),
               };

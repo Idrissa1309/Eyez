@@ -209,7 +209,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       data: (items) {
         if (items.isEmpty) {
           return SliverToBoxAdapter(
-            child: Center(child: Padding(padding: EdgeInsets.only(top: 40), child: Text(emptyMsg, style: const TextStyle(color: AppColors.textSecondary)))),
+            child: Center(child: Padding(padding: const EdgeInsets.only(top: 40), child: Text(emptyMsg, style: const TextStyle(color: AppColors.textSecondary)))),
           );
         }
         return SliverPadding(
@@ -228,6 +228,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   'id': item['tmdb_id'] ?? item['id'],
                   'title': item['title'],
                   'poster_path': item['poster_path'],
+                  'thumbnail_url': item['thumbnail_url'],
+                  'overview': item['overview'],
                 };
                 return GestureDetector(
                   onTap: () => _showMovieDetails(context, movie),
@@ -235,10 +237,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       color: AppColors.surface,
-                      image: item['poster_path'] != null ? DecorationImage(
-                        image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}${item['poster_path']}'),
-                        fit: BoxFit.cover,
-                      ) : null,
+                      image: (item['poster_path'] != null)
+                          ? DecorationImage(
+                              image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}${item['poster_path']}'),
+                              fit: BoxFit.cover,
+                            )
+                          : (item['thumbnail_url'] != null)
+                              ? DecorationImage(
+                                  image: CachedNetworkImageProvider(item['thumbnail_url']),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
                     ),
                   ),
                 );

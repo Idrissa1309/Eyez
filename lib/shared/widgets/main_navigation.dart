@@ -31,9 +31,12 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     return AppBorderWrapper(
       child: Scaffold(
         extendBody: true,
-        body: _screens[selectedIndex],
+        body: IndexedStack(
+          index: selectedIndex,
+          children: _screens,
+        ),
         bottomNavigationBar: Container(
-          height: 120, // Increased for the much larger 50% button
+          height: 120, // Reduced to 120 to fix overflow and balance design
           color: Colors.transparent,
           margin: const EdgeInsets.only(bottom: 10),
           child: Stack(
@@ -50,7 +53,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
               
               // 2. Interactive Icons Layer
               Container(
-                height: 65, // Increased height for solid bar alignment
+                height: 65, // Standard height for alignment
                 padding: const EdgeInsets.symmetric(horizontal: 45),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -104,20 +107,20 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     return GestureDetector(
       onTap: () => ref.read(navigationIndexProvider.notifier).state = 1,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 45), // Adjusted for the 50% size increase
+        margin: const EdgeInsets.only(bottom: 45), // Centered perfectly in the wave
         child: Stack(
           alignment: Alignment.center,
           children: [
             // Floating Glow Halo
             Container(
-              width: 129, // ~86 * 1.5
-              height: 129,
+              width: 120,
+              height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
                     color: accentColor.withValues(alpha: isSelected ? 0.5 : 0.2),
-                    blurRadius: 40,
+                    blurRadius: 35,
                     spreadRadius: 3,
                   ),
                 ],
@@ -132,20 +135,22 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             ),
             // Minimalist Neon Ring
             Container(
-              width: 120, // ~80 * 1.5
-              height: 120,
+              width: 110,
+              height: 110,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: accentColor.withValues(alpha: 0.2), 
+                  color: accentColor.withValues(alpha: 0.3), 
                   width: 1.5,
                 ),
               ),
-              child: Center(
+              child: OverflowBox(
+                maxWidth: 110,
+                maxHeight: 110,
                 child: Image.asset(
                   'assets/icons/icon_transparent.png',
-                  width: 87, // ~58 * 1.5
-                  height: 87,
+                  width: 70,
+                  height: 70,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -172,7 +177,7 @@ class _NavBarPainter extends CustomPainter {
     final path = Path();
     final w = size.width;
     final h = size.height;
-    const barH = 75.0; // Increased for larger button
+    const barH = 65.0; // Restored to 65 to fit screen perfectly
     final topY = h - barH;
     const margin = 20.0;
 
@@ -180,18 +185,22 @@ class _NavBarPainter extends CustomPainter {
     path.lineTo(margin, topY + 20);
     path.quadraticBezierTo(margin, topY, margin + 20, topY);
 
-    path.lineTo(w / 2 - 110, topY); // Wider opening for 50% larger button
+    final centerX = w / 2;
+    const waveW = 60.0;
+    const waveH = 35.0;
 
-    // THE WAVE (Adapted for much larger button)
+    path.lineTo(centerX - waveW, topY);
+
+    // THE WAVE (Perfectly symmetrical using cubic bezier)
     path.cubicTo(
-      w / 2 - 80, topY, 
-      w / 2 - 70, topY - 45, 
-      w / 2, topY - 45
+      centerX - waveW * 0.75, topY,
+      centerX - waveW * 0.75, topY - waveH,
+      centerX, topY - waveH
     );
     path.cubicTo(
-      w / 2 + 70, topY - 45, 
-      w / 2 + 80, topY, 
-      w / 2 + 110, topY
+      centerX + waveW * 0.75, topY - waveH,
+      centerX + waveW * 0.75, topY,
+      centerX + waveW, topY
     );
 
     path.lineTo(w - margin - 20, topY);

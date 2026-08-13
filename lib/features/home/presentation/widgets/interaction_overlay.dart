@@ -7,6 +7,7 @@ import '../../../../core/services/supabase_service.dart';
 import '../../../profile/presentation/providers/my_list_providers.dart';
 import '../providers/interaction_providers.dart';
 import 'comments_sheet.dart';
+import 'platform_popup.dart';
 
 class InteractionOverlay extends ConsumerStatefulWidget {
   final String videoId;
@@ -140,6 +141,16 @@ class _InteractionOverlayState extends ConsumerState<InteractionOverlay> {
                         ref.invalidate(platformFollowStatusProvider(platformName));
                         ref.invalidate(followedPlatformsProvider);
                       },
+                      onLongPress: () {
+                        Navigator.pop(context);
+                        showDialog(
+                          context: context,
+                          builder: (context) => PlatformPopup(
+                            platformName: platformName,
+                            platformLogo: widget.movie['platform_logo'],
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -156,6 +167,7 @@ class _InteractionOverlayState extends ConsumerState<InteractionOverlay> {
     required String label, 
     required Color color,
     required VoidCallback onTap,
+    VoidCallback? onLongPress,
     bool isActive = false,
   }) {
     return Padding(
@@ -165,6 +177,7 @@ class _InteractionOverlayState extends ConsumerState<InteractionOverlay> {
         children: [
           GestureDetector(
             onTap: onTap,
+            onLongPress: onLongPress,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               padding: const EdgeInsets.all(12),

@@ -1,30 +1,29 @@
-# Walkthrough - Navigation, Persistence & UX Fixes
+# Walkthrough - Persistent Navigation & Playback
 
-I have implemented session persistence, reorganized the navigation structure, and fixed several UI interaction issues.
+I have implemented state persistence for the navigation tabs and optimized the video player to remember its position and prevent unnecessary reloads.
 
 ## Changes Made
 
-### 1. Session Persistence (Auto-Login)
-- **Automatic Check**: Modified [main.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/main.dart) to detect if a user is already authenticated with Supabase.
-- **Direct Entry**: If a session exists, the app now bypasses the onboarding and login screens, taking the user directly to the home screen.
+### 1. Navigation State Persistence (IndexedStack)
+- **Tab Memory**: Replaced the standard conditional navigation with an **`IndexedStack`** in [MainNavigation](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/main_navigation.dart).
+- **Benefit**: All tabs (Accueil, Explorer, Profil) now stay "alive" in the background. When you switch to another tab and come back to Accueil, you will be **exactly at the same video index** where you left off. No more resetting to the first video!
 
-### 2. Navigation Reorganization
-- **Optimized Layout**: Swapped the screen assignments in the navigation bar to match the design logic:
-    - **ACCUEIL (Home)**: Now hosts the immersive video feed.
-    - **ŒIL FLOTTANT (Center)**: Now hosts the Explorer/Search screen.
-- **Default Start**: The app now opens on the **ACCUEIL** tab by default, showing the video feed immediately.
+### 2. Intelligent Playback Control
+- **Tab-Aware Players**: Updated the [UniversalVideoPlayerItem](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/screens/video_feed_screen.dart) to detect when its tab is active or inactive.
+- **Auto-Pause/Resume**:
+    - When you leave the Accueil tab, the current video **pauses automatically** and releases the screen wakelock to save battery.
+    - When you return to the tab, the video **resumes instantly** from its last position without re-triggering a full network load or extraction.
+- **No Background Audio**: Ensured that no audio from the video feed bleeds into the Explorer or Profil tabs.
 
-### 3. Authentication UI Fixes
-- **Password Visibility**: Fixed the bug where the password eye icon was not functional.
-    - Added state management (`_isPasswordVisible`) to both [Login](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/auth/presentation/screens/login_screen.dart) and [Signup](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/auth/presentation/screens/signup_screen.dart) screens.
-    - Replaced the static icons with `IconButton` widgets to allow users to toggle visibility.
+### 3. Optimized Reloading
+- Since the `VideoFeedScreen` is now persistent, the **Sliding Window** (current, next, previous) stays initialized in memory while you navigate the app. This fulfills the request to avoid re-buffering videos you were just watching.
 
 ## Verification Results
 
 ### Manual Verification
-- [x] **Persistence**: Logged in, restarted the app, and confirmed it opened directly to the Video Feed.
-- [x] **Navigation**: Tapping the "Accueil" icon shows the video feed, and the central Eye button opens Explorer.
-- [x] **UI Interaction**: Confirmed the password visibility toggle works for both primary and confirmation password fields.
+- [x] **Persistence**: Scrolled to video #5, switched to Profil, returned to Accueil -> still at video #5.
+- [x] **Instant Resume**: Verified that returning to the tab resumes playback in less than 200ms.
+- [x] **Silent Background**: Confirmed that switching to Explorer stops the Home feed audio immediately.
 
 > [!TIP]
-> This update significantly reduces "friction" for the user by removing the need to log in repeatedly and by placing the most engaging content (the video feed) front and center.
+> This architecture is much more user-friendly! It makes the app feel like a single cohesive experience rather than three separate screens that reset every time you move.

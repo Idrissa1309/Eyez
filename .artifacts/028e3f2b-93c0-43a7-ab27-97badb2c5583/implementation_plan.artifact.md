@@ -1,77 +1,34 @@
-# Plan d'implémentation - Correctifs Profil, Icones, Performances et Plateformes
+# Implementation Plan - Video Stream Caching (Zero Reload)
 
-Ce plan détaille les modifications nécessaires pour corriger l'affichage des favoris, mettre à jour les icônes de navigation, optimiser la fluidité de l'application et corriger les popups de chaînes.
+This plan implements a caching mechanism for resolved YouTube stream URLs to ensure that returning to a previously watched video is instantaneous, without re-triggering the extraction logic.
 
-## Revue Utilisateur Requise
+## User Review Required
 
 > [!IMPORTANT]
-> **Migration Supabase :** La table `likes` doit être mise à jour pour stocker les métadonnées des vidéos (titre, poster). Je vais fournir le script SQL, mais il devra être exécuté dans votre console Supabase si vous ne voulez pas perdre les affichages existants.
+> - **Caching Strategy**: The app will store the direct MP4 stream URL in a global state after the first successful extraction.
+> - **Instant Playback**: Swiping back to a video you've already seen will skip the "Searching on YouTube" step entirely, launching the player in milliseconds.
+> - **Memory Safety**: The cache is purely in-memory (RAM) and resets when the app is fully closed, ensuring it doesn't take up permanent disk space.
 
-> [!NOTE]
-> **Icônes :** L'augmentation de taille de 50% impactera la disposition de la barre de navigation. J'ajusterai les conteneurs pour maintenir l'équilibre visuel.
+## Proposed Changes
 
-> [!TIP]
-> **Popups de Chaînes :** Je vais ajouter le support pour HBO, Paramount+, Peacock, etc., et faire en sorte que si une chaîne n'est pas reconnue, elle affiche ses propres informations génériques plutôt que de se rabattre sur Netflix.
+### 1. Global Cache Provider
 
-## Modifications Proposées
+#### [MODIFY] [video_feed_providers.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/providers/video_feed_providers.dart)
+- Add `resolvedVideoUrlsProvider`: A `StateProvider<Map<String, String>>` where the key is the `video_key` and the value is the direct `mp4` URL.
 
-### 1. Correction des Favoris (Bug "Inconnus")
+### 2. Video Player Integration
 
-Le problème vient du fait que la table `likes` ne stocke que les IDs, alors que le profil a besoin des titres et des images pour l'affichage.
+#### [MODIFY] [video_feed_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/screens/video_feed_screen.dart)
+- Update `_initPlayer` in `_UniversalVideoPlayerItemState`:
+    - **Step 1**: Check if `videoKey` exists in `resolvedVideoUrlsProvider`.
+    - **Step 2**: If it exists, use the cached URL to initialize the `VideoPlayerController` immediately.
+    - **Step 3**: If not, proceed with `youtube_explode` extraction and save the result to the provider once finished.
 
-#### [SQL] [social_interact.sql](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/social_interact.sql)
-Proposer la migration suivante :
-```sql
-ALTER TABLE likes ADD COLUMN IF NOT EXISTS tmdb_id INTEGER;
-ALTER TABLE likes ADD COLUMN IF NOT EXISTS title TEXT;
-ALTER TABLE likes ADD COLUMN IF NOT EXISTS poster_path TEXT;
-```
+## Verification Plan
 
-#### [MODIFY] [supabase_service.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/core/services/supabase_service.dart)
-- Modifier `toggleLike(String videoId)` en `toggleLike(Map<String, dynamic> movie)`.
-- Insérer `tmdb_id`, `title` et `poster_path` lors de l'ajout d'un like.
-
-#### [MODIFY] [video_feed_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/screens/video_feed_screen.dart) et [interaction_overlay.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/widgets/interaction_overlay.dart)
-- Passer l'objet `movie` complet à `SupabaseService.toggleLike`.
-
----
-
-### 2. Mise à jour des Icônes et Taille
-
-#### [MODIFY] [main_navigation.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/main_navigation.dart)
-- Remplacer `icon_foreground.png` par `icon_transparent.png`.
-- Augmenter la taille de l'icône centrale de 58 à 87 (+50%).
-- Ajuster les dimensions du halo (`glow halo`) et du cercle néon pour s'adapter à la nouvelle taille.
-
-#### [MODIFY] [pubspec.yaml](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/pubspec.yaml)
-- Mettre à jour `adaptive_icon_foreground` pour pointer vers `assets/icons/icon_transparent.png`.
-
----
-
-### 3. Correction du Popup des Chaines
-
-#### [MODIFY] [platform_popup.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/home/presentation/widgets/platform_popup.dart)
-- Ajouter les données pour "HBO", "Peacock Premium", "Paramount Plus", etc. dans `platformData`.
-- Modifier la logique de fallback pour utiliser le nom réel de la plateforme passé en paramètre si elle n'est pas dans la liste prédéfinie, au lieu de forcer "Netflix".
-
-#### [MODIFY] [brand_icons.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/shared/widgets/brand_icons.dart)
-- Ajouter les URLs des logos pour les nouvelles plateformes supportées.
-
----
-
-### 4. Optimisation des Performances
-
-#### [MODIFY] [profile_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/profile/presentation/screens/profile_screen.dart)
-- Remplacer `SingleChildScrollView` par `CustomScrollView`.
-- Convertir les `GridView.builder` (avec `shrinkWrap: true`) en `SliverGrid` pour permettre le chargement paresseux (Lazy Loading) et améliorer la fluidité du défilement.
-
-#### [MODIFY] [explorer_screen.dart](file:///C:/Users/I-Dev Sow/Desktop/AndroidStudioProjects/Eyez/lib/features/explorer/presentation/screens/explorer_screen.dart)
-- Supprimer les usages de `shrinkWrap: true` dans les listes complexes pour optimiser le rendu.
-
-## Plan de Vérification
-
-### Tests Manuels
-- Vérifier que l'ajout d'un favori affiche correctement le titre et l'image dans le profil.
-- Confirmer que la barre de navigation affiche la nouvelle icône transparente en plus grand.
-- Cliquer sur HBO, Paramount+, etc., et vérifier que le popup affiche les bonnes informations.
-- Tester le défilement du profil pour valider le gain de fluidité.
+### Manual Verification
+- [ ] Open Accueil and scroll to the 3rd video.
+- [ ] Scroll to the 10th video (Video #3 will be disposed from memory).
+- [ ] Scroll back to Video #3.
+- [ ] **Expected Result**: Video #3 should start playing instantly without showing the "Searching" or "Rate Limit" delay, as it uses the cached direct URL.
+- [ ] Verify that no errors occur during rapid back-and-forth swiping.
