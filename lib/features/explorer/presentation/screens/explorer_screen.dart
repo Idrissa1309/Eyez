@@ -52,9 +52,21 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     final filteredContent = ref.watch(filteredContentProvider);
 
     return Scaffold(
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
+      body: RefreshIndicator(
+        color: AppColors.neonCyan,
+        backgroundColor: AppColors.surface,
+        onRefresh: () async {
+          // Re-fetch trending + the currently selected category/platform.
+          ref.invalidate(trendingProvider);
+          ref.invalidate(filteredContentProvider);
+          await Future.wait<void>([
+            ref.read(trendingProvider.future),
+            ref.read(filteredContentProvider.future),
+          ]);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          slivers: [
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
             sliver: SliverToBoxAdapter(
@@ -118,7 +130,8 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             _buildSliverSearchResults(context, searchResults),
             const SliverToBoxAdapter(child: SizedBox(height: 120)),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -17,23 +17,35 @@ class MainNavigation extends ConsumerStatefulWidget {
 }
 
 class _MainNavigationState extends ConsumerState<MainNavigation> {
-  final List<Widget> _screens = [
-    const VideoFeedScreen(),
-    const ExplorerScreen(),
-    const ProfileScreen(),
-  ];
+  /// Lazily-built screens: only the first-selected screen is instantiated.
+  /// Once created they stay mounted inside an [IndexedStack], so each tab
+  /// (including the video feed position) keeps its state across navigation.
+  final List<Widget?> _builtScreens = [null, null, null];
+
+  static const _screenBuilders = <int, Widget Function()>{
+    0: VideoFeedScreen.new,
+    1: ExplorerScreen.new,
+    2: ProfileScreen.new,
+  };
 
   @override
   Widget build(BuildContext context) {
     final ambientColor = ref.watch(ambientColorProvider);
     final selectedIndex = ref.watch(navigationIndexProvider);
 
+    // Lazily instantiate the screen on its first visit; afterwards it simply
+    // stays alive inside the IndexedStack.
+    _builtScreens[selectedIndex] ??= _screenBuilders[selectedIndex]!();
+
     return AppBorderWrapper(
       child: Scaffold(
         extendBody: true,
         body: IndexedStack(
           index: selectedIndex,
-          children: _screens,
+          children: [
+            for (int i = 0; i < _builtScreens.length; i++)
+              _builtScreens[i] ?? const SizedBox.shrink(),
+          ],
         ),
         bottomNavigationBar: Container(
           height: 120, // Reduced to 120 to fix overflow and balance design
@@ -213,7 +225,7 @@ class _NavBarPainter extends CustomPainter {
       ..color = glowColor.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.0
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
     
     canvas.drawPath(path, glowPaint);
     canvas.drawPath(path, paint);

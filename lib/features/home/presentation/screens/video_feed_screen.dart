@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -15,6 +15,8 @@ import '../../../../core/providers/navigation_provider.dart';
 import '../../../../core/providers/volume_provider.dart';
 import '../../../../core/services/tmdb_service.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/services/youtube_service.dart';
+import '../../../explorer/presentation/providers/explorer_providers.dart';
 import '../widgets/interaction_overlay.dart';
 import '../widgets/movie_details_sheet.dart';
 import '../widgets/platform_popup.dart';
@@ -34,8 +36,15 @@ class _VideoFeedScreenState extends ConsumerState<VideoFeedScreen> {
   int _focusedIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    loadResolvedVideoUrlsCache(ref);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final feedAsync = ref.watch(tmdbVideoFeedProvider);
+    final ytAsync = ref.watch(youtubeFeedProvider);
     final activeTab = ref.watch(navigationIndexProvider);
     final isTabActive = activeTab == 0;
 
@@ -43,25 +52,43 @@ class _VideoFeedScreenState extends ConsumerState<VideoFeedScreen> {
       backgroundColor: Colors.black,
       body: feedAsync.when(
         data: (videos) {
-          if (videos.isEmpty) {
+          // Merge YouTube videos when available
+          final ytVideos = ytAsync.valueOrNull;
+          final allVideos = [
+            ...videos,
+            ...?ytVideos,
+          ];
+          if (allVideos.isEmpty) {
             return const Center(child: Text('Aucune vidéo trouvée.', style: TextStyle(color: Colors.white)));
           }
+          // Pre-resolve stream URLs for the next items so swiping is instant
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              ref.read(videoPreloaderProvider).preloadAround(allVideos, _focusedIndex);
+            }
+          });
           return PageView.builder(
             scrollDirection: Axis.vertical,
             controller: _pageController,
+            physics: const _RelaxedPagePhysics(),
+            dragStartBehavior: DragStartBehavior.down,
+            allowImplicitScrolling: true,
             onPageChanged: (index) {
               setState(() => _focusedIndex = index);
-              final accentColor = videos[index]['accent_color'] as Color;
+              final accentColor = allVideos[index]['accent_color'] as Color;
               ref.read(ambientColorProvider.notifier).state = accentColor;
+              ref.read(videoPreloaderProvider).preloadAround(allVideos, index);
             },
-            itemCount: videos.length,
+            itemCount: allVideos.length,
             itemBuilder: (context, index) {
-              return UniversalVideoPlayerItem(
-                movie: videos[index],
-                isFocused: index == _focusedIndex,
-                index: index,
-                focusedIndex: _focusedIndex,
-                isTabActive: isTabActive,
+              return RepaintBoundary(
+                child: UniversalVideoPlayerItem(
+                  movie: allVideos[index],
+                  isFocused: index == _focusedIndex,
+                  index: index,
+                  focusedIndex: _focusedIndex,
+                  isTabActive: isTabActive,
+                ),
               );
             },
           );
@@ -71,6 +98,52 @@ class _VideoFeedScreenState extends ConsumerState<VideoFeedScreen> {
       ),
     );
   }
+}
+
+/// Page physics tuned for a short-video feed:
+/// - a gentle flick (low velocity) reliably advances to the next page
+/// - the settle spring is stiffer so pages snap quickly without bounce lag
+class _RelaxedPagePhysics extends PageScrollPhysics {
+  const _RelaxedPagePhysics({super.parent});
+
+  @override
+  _RelaxedPagePhysics applyTo(ScrollPhysics? ancestor) =>
+      _RelaxedPagePhysics(parent: buildParent(ancestor));
+
+  @override
+  SpringDescription get spring {
+    return SpringDescription.withDampingRatio(
+      mass: 0.5,
+      stiffness: 420,
+      ratio: 1.05,
+    );
+  }
+
+  @override
+  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
+    final Tolerance tolerance = toleranceFor(position);
+
+    // A quick flick in either direction always turns the page, even when the
+    // finger travelled a very short distance.
+    if (velocity.abs() > 320) {
+      final double page = position.pixels / position.viewportDimension;
+      final double target =
+          velocity > 0 ? (page.floor() + 1).toDouble() : (page.ceil() - 1).toDouble();
+      final double targetPixels =
+          (target * position.viewportDimension).clamp(position.minScrollExtent, position.maxScrollExtent);
+      if ((targetPixels - position.pixels).abs() > tolerance.distance) {
+        return ScrollSpringSimulation(spring, position.pixels, targetPixels, velocity, tolerance: tolerance);
+      }
+      return null;
+    }
+
+    // Slow drags: accept the page turn as soon as ~25% of the viewport was
+    // travelled instead of the default ~50%.
+    return super.createBallisticSimulation(position, velocity);
+  }
+
+  @override
+  double get minFlingVelocity => 320.0;
 }
 
 class UniversalVideoPlayerItem extends ConsumerStatefulWidget {
@@ -99,6 +172,9 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
   
   bool _initialized = false;
   bool _webVideoStarted = false;
+  /// True when direct MP4 playback failed (YouTube rate-limiting / stale URL)
+  /// and we fell back to the official embedded YouTube player.
+  bool _useEmbeddedFallback = false;
   String? _error;
   bool _showIcon = false;
   IconData _lastIcon = Icons.play_arrow;
@@ -108,7 +184,10 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
   late Animation<double> _heartAnimation;
   bool _showHeart = false;
   bool _isUnlike = false;
-  
+
+  late final AppLifecycleListener _lifecycleListener;
+  bool _resumePlaybackOnForeground = false;
+
   @override
   void initState() {
     super.initState();
@@ -118,90 +197,176 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     }
     _heartController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _heartAnimation = CurvedAnimation(parent: _heartController, curve: Curves.elasticOut);
+
+    _lifecycleListener = AppLifecycleListener(
+      onPause: _pausePlayback,
+      onHide: _pausePlayback,
+      onInactive: _pausePlayback,
+      onResume: _resumePlayback,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Pause if the route is no longer the top one (e.g. pushed PlatformChannelScreen)
+    final isRouteActive = ModalRoute.of(context)?.isCurrent ?? true;
+    if (!isRouteActive) {
+      _pausePlayback();
+    } else if (widget.isFocused && widget.isTabActive) {
+      _resumePlayback();
+    }
+  }
+
+  /// Whether this item renders through the YouTube iframe player
+  /// (web build, or mobile fallback when stream extraction is blocked).
+  bool get _useWebPlayer => kIsWeb || _useEmbeddedFallback;
+
+  void _pausePlayback() {
+    if (!_initialized) return;
+    final bool wasPlaying;
+    if (_useWebPlayer) {
+      wasPlaying = _webController?.value.playerState == PlayerState.playing;
+      if (wasPlaying) _webController?.pauseVideo();
+    } else {
+      wasPlaying = _nativeController?.value.isPlaying ?? false;
+      if (wasPlaying) _nativeController?.pause();
+    }
+    if (wasPlaying) _resumePlaybackOnForeground = true;
+    WakelockPlus.disable();
+  }
+
+  void _resumePlayback() {
+    if (!_initialized || !widget.isFocused || !widget.isTabActive) return;
+    if (!_resumePlaybackOnForeground) return;
+    _resumePlaybackOnForeground = false;
+    if (_useWebPlayer) {
+      _webController?.playVideo();
+    } else {
+      _nativeController?.play();
+    }
+    WakelockPlus.enable();
   }
 
   void _initPlayer() async {
     if (_initialized) return;
 
-    // Add a small delay and double-check focus to avoid rate-limiting during fast swiping
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Short guard against rate-limiting during very fast swiping; the
+    // background preloader usually has the URL ready anyway.
+    await Future.delayed(const Duration(milliseconds: 200));
     if (!mounted || (widget.index - widget.focusedIndex).abs() > 1 || !widget.isTabActive) return;
 
     final videoKey = widget.movie['video_key'];
     final isMuted = ref.read(isMutedProvider);
 
-    // 1. Check Cache first
-    final cachedUrl = ref.read(resolvedVideoUrlsProvider)[videoKey];
+    // Defensive: some entries may have no trailer at all.
+    if (videoKey is! String || videoKey.isEmpty) {
+      if (mounted) {
+        setState(() => _error = 'Aucune bande-annonce disponible pour ce titre.');
+      }
+      return;
+    }
+
+    if (!kIsWeb && _useEmbeddedFallback) {
+      _initEmbeddedPlayer(isMuted);
+      return;
+    }
+
+    // 1. Check Cache first (only fresh entries: signed URLs expire ~6h)
+    final cachedUrl = getFreshResolvedUrl(ref, videoKey);
     if (cachedUrl != null && !kIsWeb) {
       _initNativeController(cachedUrl, isMuted);
       return;
     }
 
     if (kIsWeb) {
-      _webController = YoutubePlayerController.fromVideoId(
-        videoId: videoKey,
-        autoPlay: true,
-        params: YoutubePlayerParams(
-          showControls: false,
-          showFullscreenButton: false,
-          mute: isMuted,
-          loop: true,
-          showVideoAnnotations: false,
-          strictRelatedVideos: true,
-          enableCaption: false,
-          color: 'white',
-        ),
-      );
-      if (mounted) {
-        setState(() => _initialized = true);
-      }
-      
-      _webController!.stream.listen((state) {
-        if (state.playerState == PlayerState.playing && !_webVideoStarted) {
-          if (mounted) {
-            setState(() => _webVideoStarted = true);
-            WakelockPlus.enable(); 
-          }
-        }
-      });
+      _initEmbeddedPlayer(isMuted);
     } else {
-      final yt = YoutubeExplode();
-      try {
-        final manifest = await yt.videos.streamsClient.getManifest(videoKey);
-        final streamInfo = manifest.muxed.withHighestBitrate();
-        final directUrl = streamInfo.url.toString();
+      final YouTubeService ytService = ref.read(youtubeServiceProvider);
 
-        // Save to cache for future use
-        ref.read(resolvedVideoUrlsProvider.notifier).update((state) => {
-          ...state,
-          videoKey: directUrl,
-        });
-
-        _initNativeController(directUrl, isMuted);
-      } catch (e) {
-        if (mounted) {
-          setState(() => _error = 'Rate Limit YouTube. Veuillez patienter.');
+      // Circuit breaker open (YouTube blocking this IP): skip the doomed
+      // manifest resolution and its retry storm, play via the official
+      // embedded player right away.
+      if (!ytService.isRateLimited) {
+        final directUrl = await ytService.resolveStreamUrl(videoKey);
+        if (!mounted) return;
+        if (directUrl != null) {
+          // Save to cache for future use (memory + disk)
+          cacheResolvedVideoUrl(ref, videoKey, directUrl);
+          _initNativeController(directUrl, isMuted);
+          return;
         }
-      } finally {
-        yt.close();
+        debugPrint('Stream resolution unavailable for $videoKey, using embedded player');
+      }
+
+      if (mounted) {
+        setState(() => _useEmbeddedFallback = true);
+        _initEmbeddedPlayer(isMuted);
       }
     }
+  }
+
+  void _initEmbeddedPlayer(bool isMuted) {
+    if (_webController != null) {
+      if (_initialized && widget.isFocused && widget.isTabActive) _webController!.playVideo();
+      return;
+    }
+
+    _webController = YoutubePlayerController.fromVideoId(
+      videoId: widget.movie['video_key'],
+      autoPlay: false,
+      params: YoutubePlayerParams(
+        showControls: false,
+        showFullscreenButton: false,
+        mute: isMuted,
+        loop: true,
+        showVideoAnnotations: false,
+        strictRelatedVideos: true,
+        enableCaption: false,
+        color: 'white',
+      ),
+    );
+
+    if (mounted) {
+      setState(() => _initialized = true);
+    }
+
+    if (widget.isFocused && widget.isTabActive) {
+      _webController!.playVideo();
+      WakelockPlus.enable();
+    }
+
+    _webController!.stream.listen((state) {
+      if (state.playerState == PlayerState.playing && !_webVideoStarted) {
+        if (mounted) {
+          setState(() => _webVideoStarted = true);
+          WakelockPlus.enable(); 
+        }
+      }
+    });
   }
 
   void _initNativeController(String url, bool isMuted) {
     _nativeController = VideoPlayerController.networkUrl(Uri.parse(url))
       ..initialize().then((_) {
-        if (mounted) {
-          setState(() {
-            _initialized = true;
-            _nativeController!.setVolume(isMuted ? 0.0 : 1.0);
-            if (widget.isFocused) {
-              _nativeController!.play();
-              WakelockPlus.enable();
-            }
-            _nativeController!.setLooping(true);
-          });
-        }
+        if (!mounted) return;
+        setState(() {
+          _initialized = true;
+          _nativeController!.setVolume(isMuted ? 0.0 : 1.0);
+          if (widget.isFocused) {
+            _nativeController!.play();
+            WakelockPlus.enable();
+          }
+          _nativeController!.setLooping(true);
+        });
+      }).catchError((Object e) {
+        // Cached URL went stale or playback failed: retry through the
+        // official embedded player.
+        debugPrint('Native player failed for $url, falling back to embedded player: $e');
+        if (!mounted) return;
+        _disposePlayer();
+        setState(() => _useEmbeddedFallback = true);
+        _initEmbeddedPlayer(ref.read(isMutedProvider));
       });
   }
 
@@ -225,16 +390,18 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     }
 
     // 3. Normal Play/Pause logic
-    if (widget.isFocused && widget.isTabActive) {
+    final isRouteActive = ModalRoute.of(context)?.isCurrent ?? true;
+    
+    if (widget.isFocused && widget.isTabActive && isRouteActive) {
       WakelockPlus.enable();
-      if (kIsWeb) {
+      if (_useWebPlayer) {
         _webController?.playVideo();
       } else {
         _nativeController?.play();
       }
       ref.read(historyProvider.notifier).addToHistory(widget.movie);
     } else {
-      if (kIsWeb) {
+      if (_useWebPlayer) {
         _webController?.pauseVideo();
       } else {
         _nativeController?.pause();
@@ -258,6 +425,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
   @override
   void dispose() {
     WakelockPlus.disable();
+    _lifecycleListener.dispose();
     _iconTimer?.cancel();
     _heartController.dispose();
     _nativeController?.dispose();
@@ -306,7 +474,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     if (!_initialized) return;
 
     bool isPlaying;
-    if (kIsWeb) {
+    if (_useWebPlayer) {
       isPlaying = _webController?.value.playerState == PlayerState.playing;
       if (isPlaying) {
         _webController?.pauseVideo();
@@ -348,7 +516,7 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
 
     // React to volume changes immediately
     ref.listen(isMutedProvider, (previous, next) {
-      if (kIsWeb) {
+      if (_useWebPlayer) {
         if (next) {
           _webController?.mute();
         } else {
@@ -362,25 +530,20 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     Widget content = Stack(
       fit: StackFit.expand,
       children: [
-        // 1. Cinematic Backdrop (Handle TMDB or Direct YouTube)
+        // 1. Cinematic Backdrop (Handle TMDB or Direct YouTube).
+        // Static pre-blurred image instead of a live BackdropFilter:
+        // the result is raster-cached once, so swiping stays smooth on
+        // low-end devices.
         if (posterPath != null)
-          CachedNetworkImage(
-            imageUrl: '${TMDBService.imageBaseUrl}$posterPath',
-            fit: BoxFit.cover,
-          )
+          _BlurredBackdrop(url: '${TMDBService.imageBaseUrl}$posterPath')
         else if (thumbnailUrl != null || backdropPath != null)
-          CachedNetworkImage(
-            imageUrl: thumbnailUrl ?? backdropPath!,
-            fit: BoxFit.cover,
-          ),
-        BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(color: Colors.black.withValues(alpha: 0.5)),
-        ),
+          _BlurredBackdrop(url: thumbnailUrl ?? backdropPath!)
+        else
+          const ColoredBox(color: Colors.black),
         
         if (_initialized)
           Center(
-            child: kIsWeb 
+            child: _useWebPlayer 
               ? Stack(
                   alignment: Alignment.center,
                   children: [
@@ -488,23 +651,32 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
         
         if (_initialized)
           Positioned(
-            bottom: 87,
+            // Just above the central "eye" logo (visible top ~85px)
+            bottom: 108,
             left: 10,
             right: 10,
             child: PointerInterceptor(
-              child: kIsWeb 
+              child: _useWebPlayer
                 ? _WebVideoProgressIndicator(
                     controller: _webController!,
                     playedColor: widget.movie['accent_color'] ?? AppColors.neonCyan,
                   )
-                : VideoProgressIndicator(
-                    _nativeController!,
-                    allowScrubbing: true,
-                    colors: VideoProgressColors(
-                      playedColor: widget.movie['accent_color'] ?? AppColors.neonCyan,
-                      bufferedColor: Colors.white24,
-                      backgroundColor: Colors.white10,
-                    ),
+                : AnimatedBuilder(
+                    animation: _nativeController!,
+                    builder: (context, _) {
+                      final value = _nativeController!.value;
+                      final durationMs = value.duration.inMilliseconds.toDouble();
+                      final positionMs = value.position.inMilliseconds.toDouble();
+                      final progress = durationMs > 0 ? (positionMs / durationMs).clamp(0.0, 1.0) : 0.0;
+                      return LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: Colors.white10,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          widget.movie['accent_color'] ?? AppColors.neonCyan,
+                        ),
+                        minHeight: 2.5,
+                      );
+                    },
                   ),
             ),
           ),
@@ -552,13 +724,14 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
     final overview = widget.movie['overview'] ?? '';
 
     return Positioned(
-      bottom: 120, // Moved up slightly for better visibility
+      // Sits just above the progress bar (bottom: 108)
+      bottom: 138,
       left: 20,
       right: 80,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPlatformBadge(),
+          _PlatformBadge(movie: widget.movie),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: () {
@@ -574,11 +747,13 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
               children: [
                 Text(
                   title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20, // Reduced from 22
+                    fontSize: 18, // Reduced from 20
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
+                    letterSpacing: 0.5,
                     shadows: [Shadow(color: Colors.black, blurRadius: 10)],
                   ),
                 ),
@@ -601,28 +776,107 @@ class _UniversalVideoPlayerItemState extends ConsumerState<UniversalVideoPlayerI
       ),
     );
   }
+}
 
-  Widget _buildPlatformBadge() {
-    final String platform = widget.movie['platform'] ?? 'Netflix';
+class _PlatformBadge extends ConsumerWidget {
+  final Map<String, dynamic> movie;
+
+  const _PlatformBadge({required this.movie});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final platform = movie['platform'] ?? 'Netflix';
+    final channelId = movie['channel_id'] as String?;
+
+    if (channelId != null && channelId.startsWith('UC')) {
+      final detailsAsync = ref.watch(platformDetailsProvider(channelId));
+      return detailsAsync.when(
+        data: (details) => _buildBadge(context, details['name'], details['logo'], channelId),
+        loading: () => _buildBadge(context, platform, null, channelId, isLoading: true),
+        error: (e, s) => _buildBadge(context, platform, movie['platform_logo'], channelId),
+      );
+    }
     
+    return _buildBadge(context, platform, movie['platform_logo'], channelId);
+  }
+
+  Widget _buildBadge(BuildContext context, String name, String? logoUrl, String? channelId, {bool isLoading = false}) {
     return GestureDetector(
       onTap: () {
         showDialog(
           context: context,
-          builder: (context) => PlatformPopup(platformName: platform),
+          builder: (context) => PlatformPopup(
+            platformName: name,
+            platformLogo: logoUrl,
+            channelId: channelId,
+          ),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Text(
-          platform,
-          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (logoUrl != null && logoUrl.isNotEmpty) ...[
+            ClipOval(
+              child: CachedNetworkImage(
+                imageUrl: logoUrl,
+                width: 22,
+                height: 22,
+                fit: BoxFit.cover,
+                errorWidget: (context, url, error) =>
+                    Container(width: 22, height: 22, color: Colors.white12),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ] else if (isLoading) ...[
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white24),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Text(
+              name,
+              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Static blurred backdrop: blur is applied to the image itself (not live to
+/// what's behind it), so the raster is cached once and scrolling stays cheap.
+class _BlurredBackdrop extends StatelessWidget {
+  final String url;
+
+  const _BlurredBackdrop({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.cover,
+              memCacheWidth: 200,
+              fadeInDuration: Duration.zero,
+            ),
+          ),
+          ColoredBox(color: Colors.black.withValues(alpha: 0.5)),
+        ],
       ),
     );
   }

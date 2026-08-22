@@ -49,7 +49,7 @@ class _InteractionOverlayState extends ConsumerState<InteractionOverlay> {
     
     // Watch My List state for reactivity on "Collection"
     ref.watch(myListProvider);
-    final isSaved = ref.watch(myListProvider.notifier).isSaved(int.tryParse(widget.videoId) ?? widget.movie['id'] ?? 0);
+    final isSaved = ref.watch(myListProvider.notifier).isSaved(widget.movie['id']);
     
     final platformName = widget.movie['platform'] ?? 'Netflix';
     final followData = ref.watch(platformFollowStatusProvider(platformName));
@@ -148,6 +148,7 @@ class _InteractionOverlayState extends ConsumerState<InteractionOverlay> {
                           builder: (context) => PlatformPopup(
                             platformName: platformName,
                             platformLogo: widget.movie['platform_logo'],
+                            channelId: widget.movie['channel_id'],
                           ),
                         );
                       },

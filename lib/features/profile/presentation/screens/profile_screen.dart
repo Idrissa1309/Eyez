@@ -8,6 +8,7 @@ import 'package:eyez/features/home/presentation/widgets/movie_details_sheet.dart
 import 'package:eyez/features/home/presentation/providers/interaction_providers.dart';
 import 'package:eyez/features/profile/presentation/providers/my_list_providers.dart';
 import 'package:eyez/features/profile/presentation/providers/profile_providers.dart';
+import 'package:eyez/features/profile/presentation/providers/history_providers.dart';
 import 'package:eyez/features/profile/presentation/screens/platform_channel_screen.dart';
 import 'package:eyez/features/profile/presentation/providers/profile_tabs_provider.dart';
 import 'package:eyez/shared/widgets/brand_icons.dart';
@@ -40,9 +41,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
+        child: RefreshIndicator(
+          color: AppColors.neonCyan,
+          backgroundColor: AppColors.surface,
+          onRefresh: () async {
+            // Re-fetch every section of the profile page.
+            ref.invalidate(profileDataProvider);
+            ref.invalidate(likedMoviesProvider);
+            ref.invalidate(myListProvider);
+            ref.invalidate(followedPlatformsProvider);
+            ref.read(historyProvider.notifier).loadHistory();
+            await Future.wait<void>([
+              ref.read(profileDataProvider.future),
+              ref.read(likedMoviesProvider.future),
+              ref.read(myListProvider.future),
+            ]);
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            slivers: [
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               sliver: SliverToBoxAdapter(
@@ -70,6 +87,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );

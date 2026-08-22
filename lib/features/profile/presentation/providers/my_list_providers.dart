@@ -18,8 +18,10 @@ class MyListNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
     }
   }
 
-  bool isSaved(int tmdbId) {
-    return state.value?.any((item) => item['tmdb_id'] == tmdbId) ?? false;
+  bool isSaved(Object? tmdbId) {
+    if (tmdbId == null) return false;
+    final id = tmdbId.toString();
+    return state.value?.any((item) => item['tmdb_id'].toString() == id) ?? false;
   }
 }
 

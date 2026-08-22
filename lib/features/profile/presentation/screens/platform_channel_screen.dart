@@ -5,7 +5,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/tmdb_service.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../shared/widgets/brand_icons.dart';
-import '../../../../core/constants/platform_constants.dart';
 import '../../../home/presentation/providers/interaction_providers.dart';
 import '../../../home/presentation/widgets/movie_details_sheet.dart';
 import '../../../explorer/presentation/providers/explorer_providers.dart';
@@ -13,33 +12,61 @@ import '../../../explorer/presentation/providers/explorer_providers.dart';
 class PlatformChannelScreen extends ConsumerWidget {
   final String platformName;
   final String? platformLogo;
+  final String? channelId;
 
   const PlatformChannelScreen({
     super.key, 
     required this.platformName,
     this.platformLogo,
+    this.channelId,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final String? foundKey = PlatformConstants.findKey(platformName);
-    final String normalizedName = foundKey ?? platformName;
-    
-    final data = foundKey != null 
-        ? PlatformConstants.platformData[foundKey]! 
-        : PlatformConstants.getFallbackData(platformName);
+    final providerKey = channelId ?? platformName;
+    final detailsAsync = ref.watch(platformDetailsProvider(providerKey));
 
-    final String logoUrl = (foundKey != null ? data['logo'] : platformLogo) ?? '';
+    return detailsAsync.when(
+      data: (details) => _buildScaffold(context, ref, details),
+      loading: () => const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
+      ),
+      error: (e, s) => Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.white))),
+      ),
+    );
+  }
 
-    final followData = ref.watch(platformFollowStatusProvider(normalizedName));
+  Future<void> _refresh(WidgetRef ref) async {
+    final providerKey = channelId ?? platformName;
+    ref.invalidate(platformDetailsProvider(providerKey));
+    ref.invalidate(platformContentProvider(providerKey));
+    await Future.wait<void>([
+      ref.read(platformDetailsProvider(providerKey).future),
+      ref.read(platformContentProvider(providerKey).future),
+    ]);
+  }
+
+  Widget _buildScaffold(BuildContext context, WidgetRef ref, Map<String, dynamic> details) {
+    final name = details['name'] ?? platformName;
+    final logoUrl = details['logo'] ?? platformLogo ?? '';
+    final description = details['description'] ?? '';
+
+    final followData = ref.watch(platformFollowStatusProvider(name));
     final isFollowing = followData.value ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          _buildSliverAppBar(context, normalizedName, data, logoUrl, isFollowing, ref),
+      body: RefreshIndicator(
+        color: AppColors.neonCyan,
+        backgroundColor: AppColors.surface,
+        onRefresh: () => _refresh(ref),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          slivers: [
+          _buildSliverAppBar(context, name, details, logoUrl, isFollowing, ref),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -52,7 +79,7 @@ class PlatformChannelScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    data['description']!,
+                    description,
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.5),
                   ),
                   const SizedBox(height: 30),
@@ -67,12 +94,15 @@ class PlatformChannelScreen extends ConsumerWidget {
           ),
           _buildSliverPopularContent(context, ref),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSliverAppBar(BuildContext context, String name, Map<String, String> data, String logoUrl, bool isFollowing, WidgetRef ref) {
+  Widget _buildSliverAppBar(BuildContext context, String name, Map<String, dynamic> details, String logoUrl, bool isFollowing, WidgetRef ref) {
+    final bannerUrl = details['banner'] ?? '';
+    
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
@@ -81,10 +111,15 @@ class PlatformChannelScreen extends ConsumerWidget {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            CachedNetworkImage(
-              imageUrl: data['banner']!,
-              fit: BoxFit.cover,
-            ),
+            if (bannerUrl.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: bannerUrl,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => _buildBannerFallback(name, logoUrl),
+                errorWidget: (context, url, error) => _buildBannerFallback(name, logoUrl),
+              )
+            else
+              _buildBannerFallback(name, logoUrl),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -120,9 +155,9 @@ class PlatformChannelScreen extends ConsumerWidget {
                           name,
                           style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                         ),
-                        if (data['subscribers'] != 'N/A')
+                        if (details['subscribers'] != 'N/A')
                           Text(
-                            '${data['subscribers']} abonnés',
+                            '${details['subscribers']} abonnés',
                             style: const TextStyle(color: Colors.white70, fontSize: 12),
                           ),
                       ],
@@ -134,6 +169,21 @@ class PlatformChannelScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBannerFallback(String name, String logoUrl) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1B1D33), Color(0xFF0A0B14)],
+        ),
+      ),
+      child: Center(
+        child: PlatformIcon(name: name, imageUrl: logoUrl, size: 120, isCircular: true),
       ),
     );
   }
@@ -161,7 +211,7 @@ class PlatformChannelScreen extends ConsumerWidget {
   }
 
   Widget _buildSliverPopularContent(BuildContext context, WidgetRef ref) {
-    final platformContent = ref.watch(platformContentProvider(platformName));
+    final platformContent = ref.watch(platformContentProvider(channelId ?? platformName));
     
     return platformContent.when(
       data: (items) => SliverPadding(
@@ -177,6 +227,8 @@ class PlatformChannelScreen extends ConsumerWidget {
             (context, index) {
               final item = items[index];
               final posterPath = item['poster_path'];
+              final thumbnailUrl = item['thumbnail_url'];
+
               return GestureDetector(
                 onTap: () {
                   showModalBottomSheet(
@@ -190,11 +242,18 @@ class PlatformChannelScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(15),
                     color: AppColors.surface,
-                    image: posterPath != null ? DecorationImage(
-                      image: CachedNetworkImageProvider('${TMDBService.imageBaseUrl}$posterPath'),
+                    image: (posterPath != null || thumbnailUrl != null) ? DecorationImage(
+                      image: CachedNetworkImageProvider(
+                        posterPath != null 
+                            ? '${TMDBService.imageBaseUrl}$posterPath' 
+                            : thumbnailUrl!
+                      ),
                       fit: BoxFit.cover,
                     ) : null,
                   ),
+                  child: posterPath == null && thumbnailUrl == null 
+                      ? const Center(child: Icon(Icons.play_circle_outline, color: Colors.white24))
+                      : null,
                 ),
               );
             },

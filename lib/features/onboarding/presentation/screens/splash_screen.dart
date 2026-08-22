@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../main.dart' show supabaseReady;
 import 'onboarding_screen.dart';
 import '../../../../shared/widgets/main_navigation.dart';
 
@@ -24,27 +24,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initialize() async {
-    final stopwatch = Stopwatch()..start();
     if (mounted) {
       setState(() {
-        _status = 'Chargement des configurations...';
+        _status = 'Connexion au serveur...';
         _showRetry = false;
       });
     }
 
     try {
-      // 1. Load environment variables with timeout
-      await dotenv.load(fileName: 'assets/.env').timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          if (mounted) setState(() => _status = 'Configuration lente...');
-        },
-      );
-      
-      if (mounted) setState(() => _status = 'Connexion au serveur...');
-
-      // 2. Initialize Supabase with timeout
-      await SupabaseService.init().timeout(
+      // Wait for the Supabase init that was already kicked off in main().
+      // This avoids a duplicate init call and saves the time between main()
+      // and the first frame (~100-300 ms).
+      await supabaseReady.timeout(
         const Duration(seconds: 12),
         onTimeout: () {
           if (mounted) {
@@ -59,23 +50,36 @@ class _SplashScreenState extends State<SplashScreen> {
 
       if (mounted) setState(() => _status = "Préparation de l'interface...");
 
-      // 3. Ensure minimum visibility
-      final elapsed = stopwatch.elapsedMilliseconds;
-      if (elapsed < 2000) {
-        await Future.delayed(Duration(milliseconds: 2000 - elapsed));
-      }
-
       if (!mounted) return;
-      
+
       final currentUser = SupabaseService.currentUser;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => currentUser != null 
-              ? const MainNavigation() 
+          builder: (context) => currentUser != null
+              ? const MainNavigation()
               : const OnboardingScreen(),
         ),
       );
     } catch (e) {
+      // On retry, supabaseReady may have already completed (success or error).
+      // If it failed, try a direct init as fallback.
+      if (e is! TimeoutException) {
+        try {
+          await SupabaseService.init().timeout(const Duration(seconds: 12));
+          if (!mounted) return;
+          final currentUser = SupabaseService.currentUser;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => currentUser != null
+                  ? const MainNavigation()
+                  : const OnboardingScreen(),
+            ),
+          );
+          return;
+        } catch (_) {
+          // Fall through to error UI
+        }
+      }
       if (mounted) {
         setState(() {
           _status = 'Problème de connexion';
@@ -93,19 +97,11 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Styled Logo
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: AppColors.neonGradient,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.neonFuchsia.withValues(alpha: 0.3),
-                    blurRadius: 30,
-                    spreadRadius: 5,
-                  ),
-                ],
               ),
               child: const Icon(
                 Icons.remove_red_eye,

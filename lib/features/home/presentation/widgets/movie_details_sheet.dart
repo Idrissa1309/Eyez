@@ -5,11 +5,34 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/tmdb_service.dart';
 import '../../../../shared/widgets/neon_button.dart';
 import '../../../profile/presentation/providers/my_list_providers.dart';
+import '../../../profile/presentation/screens/profile_video_player_screen.dart';
 
 class MovieDetailsSheet extends ConsumerWidget {
   final dynamic movie;
 
   const MovieDetailsSheet({super.key, this.movie});
+
+  bool get _hasTrailer {
+    final key = movie?['video_key'];
+    return key is String && key.isNotEmpty;
+  }
+
+  void _watch(BuildContext context) {
+    if (!_hasTrailer) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucune bande-annonce disponible pour ce titre.'),
+          backgroundColor: AppColors.surface,
+        ),
+      );
+      return;
+    }
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ProfileVideoPlayerScreen(movie: movie)),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,8 +44,12 @@ class MovieDetailsSheet extends ConsumerWidget {
     final year = movie?['release_date']?.split('-')[0] ?? movie?['first_air_date']?.split('-')[0] ?? '2024';
     final synopsis = movie?['overview'] ?? 'Aucun synopsis disponible.';
 
-    // Watch the list state directly for instant reactivity
-    final isSaved = tmdbId != null && ref.watch(myListProvider.notifier).isSaved(tmdbId);
+    // Watch the list STATE (not the notifier) so the button rebuilds
+    // instantly after toggling.
+    final myListState = ref.watch(myListProvider);
+    final tmdbIdStr = tmdbId?.toString();
+    final isSaved = tmdbIdStr != null &&
+        (myListState.value?.any((item) => item['tmdb_id'].toString() == tmdbIdStr) ?? false);
     final isYouTubeDirect = movie?['is_youtube_direct'] ?? false;
 
     return Container(
@@ -135,7 +162,7 @@ class MovieDetailsSheet extends ConsumerWidget {
                   flex: 2,
                   child: NeonButton(
                     text: 'Regarder',
-                    onPressed: () {},
+                    onPressed: () => _watch(context),
                   ),
                 ),
                 const SizedBox(width: 12),

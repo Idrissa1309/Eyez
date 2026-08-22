@@ -3,32 +3,45 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../shared/widgets/brand_icons.dart';
-import '../../../../core/constants/platform_constants.dart';
 import '../../../profile/presentation/screens/platform_channel_screen.dart';
+import '../../../explorer/presentation/providers/explorer_providers.dart';
 import '../providers/interaction_providers.dart';
 
 class PlatformPopup extends ConsumerWidget {
   final String platformName;
   final String? platformLogo;
+  final String? channelId;
 
   const PlatformPopup({
     super.key, 
     required this.platformName,
     this.platformLogo,
+    this.channelId,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final String? foundKey = PlatformConstants.findKey(platformName);
-    final String normalizedName = foundKey ?? platformName;
+    final detailsAsync = ref.watch(platformDetailsProvider(channelId ?? platformName));
     
-    final data = foundKey != null 
-        ? PlatformConstants.platformData[foundKey]! 
-        : PlatformConstants.getFallbackData(platformName);
-        
-    final String logoUrl = (foundKey != null ? data['logo'] : platformLogo) ?? '';
+    return detailsAsync.when(
+      data: (details) => _buildContent(context, ref, details),
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.neonCyan)),
+      error: (e, s) => _buildContent(context, ref, {
+        'name': platformName,
+        'logo': platformLogo,
+        'description': 'Erreur lors du chargement des détails.',
+        'subscribers': 'N/A',
+      }),
+    );
+  }
 
-    final followData = ref.watch(platformFollowStatusProvider(normalizedName));
+  Widget _buildContent(BuildContext context, WidgetRef ref, Map<String, dynamic> details) {
+    final String name = details['name'] ?? platformName;
+    final String logoUrl = details['logo'] ?? platformLogo ?? '';
+    final String subscribers = details['subscribers'] ?? 'N/A';
+    final String description = details['description'] ?? '';
+
+    final followData = ref.watch(platformFollowStatusProvider(name));
     final isFollowing = followData.value ?? false;
 
     return Dialog(
@@ -66,14 +79,15 @@ class PlatformPopup extends ConsumerWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => PlatformChannelScreen(
-                      platformName: normalizedName,
+                      platformName: name,
                       platformLogo: logoUrl,
+                      channelId: channelId,
                     ),
                   ),
                 );
               },
               child: PlatformIcon(
-                name: normalizedName,
+                name: name,
                 imageUrl: logoUrl,
                 size: 80,
                 isCircular: true,
@@ -83,21 +97,24 @@ class PlatformPopup extends ConsumerWidget {
             const SizedBox(height: 20),
             
             Text(
-              normalizedName,
+              name,
+              textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
             ),
             
-            if (data['subscribers'] != 'N/A')
+            if (subscribers != 'N/A')
               Text(
-                '${data['subscribers']} abonnés',
+                '$subscribers abonnés',
                 style: const TextStyle(color: Colors.white54, fontSize: 13),
               ),
             
             const SizedBox(height: 20),
             
             Text(
-              data['description']!,
+              description,
               textAlign: TextAlign.center,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
             ),
             
@@ -105,8 +122,8 @@ class PlatformPopup extends ConsumerWidget {
             
             GestureDetector(
               onTap: () async {
-                await SupabaseService.togglePlatformFollow(normalizedName);
-                ref.invalidate(platformFollowStatusProvider(normalizedName));
+                await SupabaseService.togglePlatformFollow(name);
+                ref.invalidate(platformFollowStatusProvider(name));
                 ref.invalidate(followedPlatformsProvider);
               },
               child: AnimatedContainer(
@@ -161,8 +178,9 @@ class PlatformPopup extends ConsumerWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => PlatformChannelScreen(
-                      platformName: normalizedName,
+                      platformName: name,
                       platformLogo: logoUrl,
+                      channelId: channelId,
                     ),
                   ),
                 );

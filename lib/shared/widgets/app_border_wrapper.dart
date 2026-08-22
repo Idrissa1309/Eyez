@@ -77,12 +77,12 @@ class _GradientBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..shader = borderGradient.createShader(rect);
 
-    // Draw the glow
+    // Draw the glow (reduced blur from 12→6 for faster first-frame render)
     final glowPaint = Paint()
       ..strokeWidth = strokeWidth + 1
       ..style = PaintingStyle.stroke
       ..color = glowColor.withValues(alpha: 0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(rect.deflate(strokeWidth / 2), const Radius.circular(30)),

@@ -4,12 +4,12 @@ import 'package:flutter/foundation.dart';
 
 class SupabaseService {
   static String get _url => dotenv.get('SUPABASE_URL');
-  static String get _publishabeKey => dotenv.get('SUPABASE_PUBLISHABLE_KEY');
+  static String get _publishableKey => dotenv.get('SUPABASE_PUBLISHABLE_KEY');
 
   static Future<void> init() async {
     await Supabase.initialize(
       url: _url,
-      publishableKey: _publishabeKey,
+      publishableKey: _publishableKey,
     );
   }
 
@@ -41,11 +41,15 @@ class SupabaseService {
 
   static Future<bool> verifyPassword(String password) async {
     try {
+      final session = client.auth.currentSession;
       final email = currentUser?.email;
-      if (email == null) return false;
+      final refreshToken = session?.refreshToken;
+      if (session == null || email == null || refreshToken == null) return false;
 
-      // Attempt a temporary sign in to verify the current password
+      // Verify the password without disturbing the active session:
+      // restore the original tokens right after the check succeeds.
       await client.auth.signInWithPassword(email: email, password: password);
+      await client.auth.setSession(refreshToken, accessToken: session.accessToken);
       return true;
     } catch (e) {
       return false;

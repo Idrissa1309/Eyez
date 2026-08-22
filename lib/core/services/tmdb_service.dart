@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class TMDBService {
   Dio get _dio {
     final key = dotenv.get('TMDB_API_KEY', fallback: '').trim();
-    
+
     return Dio(BaseOptions(
       baseUrl: 'https://api.themoviedb.org/3',
       queryParameters: {
@@ -69,65 +69,96 @@ class TMDBService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _enrichItems(List<dynamic> items) async {
-    final List<Future<Map<String, dynamic>?>> detailFutures = items.take(20).map((item) async {
-      final id = item['id'];
-      final type = item['media_type'] ?? 'movie';
-      final isAnime = (item['genre_ids'] as List?)?.contains(16) ?? false;
+  /// Runs [task] over [items] with at most [concurrency] calls in flight,
+  /// preventing bursts of parallel requests that trigger TMDB rate limits.
+  Future<List<T>> _runWithConcurrencyLimit<T>(
+    Iterable<dynamic> items,
+    int concurrency,
+    Future<T> Function(dynamic item) task,
+  ) async {
+    final itemList = items.toList();
+    final results = <T>[];
+    for (var i = 0; i < itemList.length; i += concurrency) {
+      final batch = itemList.skip(i).take(concurrency);
+      final batchResults = await Future.wait(batch.map(task));
+      results.addAll(batchResults);
+    }
+    return results;
+  }
 
-      try {
-        final details = await getDetails(id, type);
-        
-        final List<String> platformNames = [];
-        final List<String> platformLogos = [];
+  Future<Map<String, dynamic>?> _enrichItem(dynamic item, {bool requireVideo = false}) async {
+    final id = item['id'];
+    final type = item['media_type'] ?? 'movie';
+    final isAnime = (item['genre_ids'] as List?)?.contains(16) ?? false;
 
-        if (isAnime) {
-          platformNames.add('Crunchyroll');
-          platformLogos.add(''); // Use hardcoded or dynamic logo later
-        }
-        
-        final regions = ['FR', 'US', 'JP'];
-        for (var region in regions) {
-          final providers = details['watch/providers']?['results']?[region]?['flatrate'] as List<dynamic>?;
-          if (providers != null) {
-            for (var p in providers) {
-              final name = p['provider_name'] as String;
-              final logo = p['logo_path'] as String?;
-              if (!platformNames.contains(name)) {
-                platformNames.add(name);
-                platformLogos.add(logo != null ? '${TMDBService.imageBaseUrl}$logo' : '');
-              }
+    try {
+      final details = await getDetails(id, type);
+
+      final List<String> platformNames = [];
+      final List<String> platformLogos = [];
+
+      if (isAnime) {
+        platformNames.add('Crunchyroll');
+        platformLogos.add(''); // Use hardcoded or dynamic logo later
+      }
+
+      final regions = ['FR', 'US', 'JP'];
+      for (var region in regions) {
+        final providers = details['watch/providers']?['results']?[region]?['flatrate'] as List<dynamic>?;
+        if (providers != null) {
+          for (var p in providers) {
+            final name = p['provider_name'] as String;
+            final logo = p['logo_path'] as String?;
+            if (!platformNames.contains(name)) {
+              platformNames.add(name);
+              platformLogos.add(logo != null ? '${TMDBService.imageBaseUrl}$logo' : '');
             }
           }
         }
-
-        if (platformNames.isEmpty) {
-          // Provide variety if no provider found
-          final fallbacks = ['Netflix', 'Amazon Prime Video', 'Disney+'];
-          final selected = fallbacks[id % fallbacks.length];
-          platformNames.add(selected);
-          platformLogos.add('');
-        }
-
-        return <String, dynamic>{
-          ...Map<String, dynamic>.from(item),
-          'platforms': platformNames,
-          'platform': platformNames.first,
-          'platform_logo': platformLogos.first,
-          'accent_color': _getAccentColorForGenre(item['genre_ids']?.first),
-          'original_language_name': getLanguageName(item['original_language']),
-        };
-      } catch (e) {
-        return <String, dynamic>{
-          ...Map<String, dynamic>.from(item),
-          'platforms': ['Netflix'],
-          'platform': 'Netflix',
-          'original_language_name': getLanguageName(item['original_language']),
-        };
       }
-    }).toList();
 
-    final List<Map<String, dynamic>?> results = await Future.wait(detailFutures);
+      if (platformNames.isEmpty) {
+        // Provide variety if no provider found
+        final fallbacks = ['Netflix', 'Amazon Prime Video', 'Disney+'];
+        final selected = fallbacks[id % fallbacks.length];
+        platformNames.add(selected);
+        platformLogos.add('');
+      }
+
+      final videos = details['videos']?['results'] as List<dynamic>?;
+      String? videoKey;
+      if (videos != null && videos.isNotEmpty) {
+        final trailer = videos.firstWhere(
+          (v) => v['site'] == 'YouTube' && (v['type'] == 'Trailer' || v['type'] == 'Teaser'),
+          orElse: () => videos.firstWhere((v) => v['site'] == 'YouTube', orElse: () => null),
+        );
+        if (trailer != null) videoKey = trailer['key'];
+      }
+
+      if (requireVideo && videoKey == null) return null;
+
+      return <String, dynamic>{
+        ...Map<String, dynamic>.from(item),
+        'video_key': videoKey,
+        'platforms': platformNames,
+        'platform': platformNames.first,
+        'platform_logo': platformLogos.first,
+        'accent_color': _getAccentColorForGenre(item['genre_ids']?.first),
+        'original_language_name': getLanguageName(item['original_language']),
+      };
+    } catch (e) {
+      if (requireVideo) return null;
+      return <String, dynamic>{
+        ...Map<String, dynamic>.from(item),
+        'platforms': ['Netflix'],
+        'platform': 'Netflix',
+        'original_language_name': getLanguageName(item['original_language']),
+      };
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _enrichItems(List<dynamic> items) async {
+    final results = await _runWithConcurrencyLimit(items.take(20), 4, _enrichItem);
     return results.whereType<Map<String, dynamic>>().toList();
   }
 
@@ -249,73 +280,36 @@ class TMDBService {
   Future<List<Map<String, dynamic>>> getTrendingWithVideos() async {
     try {
       final trending = await getTrending();
-      final List<Future<Map<String, dynamic>?>> detailFutures = trending.take(40).map((item) async {
-        final id = item['id'];
-        final type = item['media_type'] ?? 'movie';
-        final isAnime = (item['genre_ids'] as List?)?.contains(16) ?? false;
-
-        try {
-          final details = await getDetails(id, type);
-          final videos = details['videos']?['results'] as List<dynamic>?;
-          
-          if (videos != null && videos.isNotEmpty) {
-            final trailer = videos.firstWhere(
-              (v) => v['site'] == 'YouTube' && (v['type'] == 'Trailer' || v['type'] == 'Teaser'),
-              orElse: () => videos.firstWhere((v) => v['site'] == 'YouTube', orElse: () => null),
-            );
-
-            if (trailer != null) {
-              final List<String> platformNames = [];
-              final List<String> platformLogos = [];
-
-              if (isAnime) {
-                platformNames.add('Crunchyroll');
-                platformLogos.add('');
-              }
-              
-              final regions = ['FR', 'US', 'JP'];
-              for (var region in regions) {
-                final providers = details['watch/providers']?['results']?[region]?['flatrate'] as List<dynamic>?;
-                if (providers != null) {
-                  for (var p in providers) {
-                    final name = p['provider_name'] as String;
-                    final logo = p['logo_path'] as String?;
-                    if (!platformNames.contains(name)) {
-                      platformNames.add(name);
-                      platformLogos.add(logo != null ? '${TMDBService.imageBaseUrl}$logo' : '');
-                    }
-                  }
-                }
-              }
-
-              if (platformNames.isEmpty) {
-                final fallbacks = ['Netflix', 'Amazon Prime Video', 'Disney+'];
-                final selected = fallbacks[id % fallbacks.length];
-                platformNames.add(selected);
-                platformLogos.add('');
-              }
-
-              return <String, dynamic>{
-                ...Map<String, dynamic>.from(item),
-                'video_key': trailer['key'],
-                'platforms': platformNames,
-                'platform': platformNames.first,
-                'platform_logo': platformLogos.first,
-                'accent_color': _getAccentColorForGenre(item['genre_ids']?.first),
-                'original_language_name': getLanguageName(item['original_language']),
-              };
-            }
-          }
-          return null;
-        } catch (e) {
-          return null;
-        }
-      }).toList();
-
-      final List<Map<String, dynamic>?> results = await Future.wait(detailFutures);
+      final results = await _runWithConcurrencyLimit(
+        trending.take(40),
+        4,
+        (item) => _enrichItem(item, requireVideo: true),
+      );
       return results.whereType<Map<String, dynamic>>().toList();
     } catch (e) {
       throw Exception('Failed to fetch trending with videos: $e');
+    }
+  }
+
+  /// Lightweight trending fetch for fast initial display.
+  /// Enriches only the first [previewCount] items; ONLY items with an actual
+  /// YouTube trailer are returned so every feed page is playable.
+  Future<List<Map<String, dynamic>>> getTrendingPreview({int previewCount = 5}) async {
+    try {
+      final trending = await getTrending();
+      final items = trending.take(30).toList();
+
+      // Fast preview: enrich a handful of items, keeping only those that
+      // really have a trailer (requireVideo: true).
+      final preview = await _runWithConcurrencyLimit(
+        items.take(previewCount),
+        previewCount,
+        (item) => _enrichItem(item, requireVideo: true),
+      );
+
+      return preview.whereType<Map<String, dynamic>>().toList();
+    } catch (e) {
+      throw Exception('Failed to fetch trending preview: $e');
     }
   }
 
