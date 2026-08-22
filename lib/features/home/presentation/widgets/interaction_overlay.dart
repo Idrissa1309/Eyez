@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../profile/presentation/providers/my_list_providers.dart';
@@ -24,23 +23,6 @@ class InteractionOverlay extends ConsumerStatefulWidget {
 }
 
 class _InteractionOverlayState extends ConsumerState<InteractionOverlay> {
-  bool _showHint = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkHint();
-  }
-
-  Future<void> _checkHint() async {
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeen = prefs.getBool('has_seen_interaction_hint') ?? false;
-    if (!hasSeen) {
-      if (mounted) setState(() => _showHint = true);
-      await prefs.setBool('has_seen_interaction_hint', true);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Watch status providers for real-time reactivity
@@ -70,22 +52,6 @@ class _InteractionOverlayState extends ConsumerState<InteractionOverlay> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // One-time tutorial hint
-                if (_showHint) ...[
-                  const Icon(Icons.touch_app, color: Colors.white, size: 40),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Maintenez appuyé\npour interagir',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 60),
-                ],
-                
                 // Horizontal Interaction Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
